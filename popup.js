@@ -333,6 +333,11 @@ const btnPreview     = document.getElementById('btn-preview');
 const previewLabel   = document.getElementById('preview-label');
 const previewIcon    = document.getElementById('preview-icon');
 const voicesBadge    = document.getElementById('voices-badge');
+const naturalVoiceHint = document.getElementById('natural-voice-hint');
+const guideModal       = document.getElementById('guide-modal');
+const openGuideBtn     = document.getElementById('open-guide-btn');
+const closeGuideBtn    = document.getElementById('close-guide-btn');
+const btnRefreshVoices = document.getElementById('btn-refresh-voices');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // VOICE LOADING — speechSynthesis API (top-level, outside init)
@@ -666,6 +671,22 @@ function updateVoiceSelect() {
     return name.includes('natural') || name.includes('google');
   };
 
+  // Check if there's any natural voice for this language
+  const hasNatural = voices.some(isPreferred);
+  
+  // CORE_LANGUAGES have natural voices. Check if the selected lang is supported
+  const hasNaturalSupport = selectedLang !== 'auto' && CORE_LANGUAGES.some(c => {
+    const cBase = c.split('-')[0].split('_')[0].toLowerCase();
+    const sBase = selectedLang.split('-')[0].split('_')[0].toLowerCase();
+    return c === selectedLang || cBase === sBase;
+  });
+
+  if (hasNaturalSupport && !hasNatural) {
+    naturalVoiceHint.style.display = 'flex';
+  } else {
+    naturalVoiceHint.style.display = 'none';
+  }
+
   voices.sort((a, b) => {
     const ap = isPreferred(a), bp = isPreferred(b);
     if (ap && !bp) return -1;
@@ -848,6 +869,25 @@ function setupEvents() {
       closeDropdown();
       langTrigger.focus();
     }
+  });
+
+  // Modal events
+  openGuideBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    guideModal.classList.add('active');
+  });
+
+  closeGuideBtn.addEventListener('click', () => {
+    guideModal.classList.remove('active');
+  });
+
+  btnRefreshVoices.addEventListener('click', () => {
+    loadVoices();
+    btnRefreshVoices.textContent = '✓ Refreshed!';
+    setTimeout(() => {
+      btnRefreshVoices.textContent = '🔄 Refresh Voices';
+      guideModal.classList.remove('active');
+    }, 1500);
   });
 
   // Click outside closes dropdown

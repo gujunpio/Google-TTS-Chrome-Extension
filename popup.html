@@ -527,6 +527,130 @@
       opacity: 0.45;
       pointer-events: none;
     }
+
+    /* ── Natural Voice Hint ──────────────────────────────────────────────── */
+    .natural-voice-hint {
+      margin-top: 8px;
+      font-size: 11px;
+      color: #6a7c00;
+      background: #fdffe6;
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: 1px solid #e1e6b3;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      line-height: 1.4;
+    }
+
+    .natural-voice-hint a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    
+    .natural-voice-hint a:hover {
+      text-decoration: underline;
+    }
+
+    /* ── Modal ───────────────────────────────────────────────────────────── */
+    .modal-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      backdrop-filter: blur(2px);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-content {
+      background: var(--surface);
+      width: 300px;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      transform: translateY(15px) scale(0.95);
+      transition: transform 0.2s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .modal-overlay.active .modal-content {
+      transform: translateY(0) scale(1);
+    }
+
+    .modal-header {
+      padding: 12px 14px;
+      background: var(--surface-alt);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-header h2 {
+      font-size: 13px;
+      color: var(--text-main);
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 18px;
+      color: var(--text-sub);
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .modal-close:hover { color: var(--text-main); }
+
+    .modal-body {
+      padding: 14px;
+      font-size: 12px;
+      color: var(--text-main);
+      line-height: 1.5;
+    }
+
+    .guide-steps {
+      margin: 10px 0 14px 18px;
+      color: var(--text-sub);
+    }
+
+    .guide-steps li {
+      margin-bottom: 6px;
+    }
+
+    .guide-steps strong {
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    .btn-refresh {
+      width: 100%;
+      padding: 10px;
+      background: var(--primary-light);
+      color: var(--primary);
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-refresh:hover {
+      background: #d8e5ff;
+    }
   </style>
 </head>
 <body>
@@ -590,6 +714,10 @@
           <select id="voice-select" aria-label="Voice">
             <option value="">Loading voices…</option>
           </select>
+          <!-- Natural Voice Hint (Hidden by default) -->
+          <div id="natural-voice-hint" class="natural-voice-hint" style="display: none;">
+            <span>💡 High-quality Natural voice is available. <a href="#" id="open-guide-btn">See how to get it</a></span>
+          </div>
         </div>
       </div>
 
@@ -629,6 +757,27 @@
       </div>
     </div>
 
+  </div>
+
+  <!-- Natural Voice Setup Modal -->
+  <div class="modal-overlay" id="guide-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Unlock Natural Voices</h2>
+        <button class="modal-close" id="close-guide-btn" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Chrome supports high-quality AI voices, but you must enable them once:</p>
+        <ol class="guide-steps">
+          <li>Open any article webpage.</li>
+          <li>Click the <strong>📖 Reading Mode</strong> icon in the address bar.</li>
+          <li>Click <strong>Play</strong> in the Reading Mode panel.</li>
+          <li>Click the <strong>Voice Settings</strong> icon (gear) ➔ <strong>Manage Languages</strong>.</li>
+          <li><strong>Toggle ON</strong> the languages you want. Chrome will automatically download the natural voices.</li>
+        </ol>
+        <button class="btn-refresh" id="btn-refresh-voices">🔄 Refresh Voices</button>
+      </div>
+    </div>
   </div>
 
   <script src="popup.js"></script>
