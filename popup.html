@@ -463,33 +463,44 @@
       padding: 0 1px;
     }
 
-    /* ── Preview button ──────────────────────────────────────────────────── */
-    .btn-preview {
-      width: 100%;
+    /* ── Action buttons ──────────────────────────────────────────────────── */
+    .action-buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 5px;
+    }
+
+    .btn-preview, .btn-read {
+      flex: 1;
       padding: 12px;
-      background: var(--gradient);
       color: #fff;
       border: none;
       border-radius: 11px;
       font-family: 'Inter', sans-serif;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 600;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
+      gap: 6px;
       transition: all 0.2s ease;
-      box-shadow: 0 4px 14px rgba(30,111,255,0.32);
       letter-spacing: 0.1px;
     }
 
-    .btn-preview:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 7px 20px rgba(30,111,255,0.42);
+    .btn-preview {
+      background: var(--gradient);
+      box-shadow: 0 4px 14px rgba(30,111,255,0.32);
     }
-
+    .btn-preview:hover { transform: translateY(-2px); box-shadow: 0 7px 20px rgba(30,111,255,0.42); }
     .btn-preview:active { transform: translateY(0); }
+
+    .btn-read {
+      background: linear-gradient(135deg, #10B981 0%, #34D399 100%);
+      box-shadow: 0 4px 14px rgba(16,185,129,0.32);
+    }
+    .btn-read:hover { transform: translateY(-2px); box-shadow: 0 7px 20px rgba(16,185,129,0.42); }
+    .btn-read:active { transform: translateY(0); }
 
     .btn-preview.playing {
       background: linear-gradient(135deg, #EF4444 0%, #F87171 100%);
@@ -651,6 +662,40 @@
     .btn-refresh:hover {
       background: #d8e5ff;
     }
+
+    .guide-gif-container {
+      position: relative;
+      width: 100%;
+      margin-bottom: 12px;
+      cursor: pointer;
+    }
+
+    .guide-gif {
+      width: 100%;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      display: block;
+    }
+
+    .guide-gif-overlay {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      background: rgba(0,0,0,0.65);
+      color: white;
+      text-align: center;
+      padding: 6px;
+      font-size: 11px;
+      font-weight: 500;
+      border-bottom-left-radius: 8px;
+      border-bottom-right-radius: 8px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .guide-gif-container:hover .guide-gif-overlay {
+      opacity: 1;
+    }
   </style>
 </head>
 <body>
@@ -743,11 +788,17 @@
       </div>
     </div>
 
-    <!-- Preview button -->
-    <button class="btn-preview" id="btn-preview" aria-label="Preview voice">
-      <span id="preview-icon">▶</span>
-      <span id="preview-label">Preview Voice</span>
-    </button>
+    <!-- Action buttons -->
+    <div class="action-buttons">
+      <button class="btn-preview" id="btn-preview" aria-label="Preview voice">
+        <span id="preview-icon">▶</span>
+        <span id="preview-label">Preview Voice</span>
+      </button>
+      <button class="btn-read" id="btn-read-selected" aria-label="Read selected text">
+        <span id="read-icon">🔊</span>
+        <span id="read-label">Read Selected</span>
+      </button>
+    </div>
 
     <!-- Footer hint -->
     <div class="footer">
@@ -767,7 +818,11 @@
         <button class="modal-close" id="close-guide-btn" aria-label="Close">&times;</button>
       </div>
       <div class="modal-body">
-        <p>Chrome supports high-quality AI voices, but you must enable them once:</p>
+        <p>Chrome supports high-quality Natural voices, but you must enable them once:</p>
+        <div class="guide-gif-container" id="guide-gif-container" title="Click to view full size">
+          <img src="guide.gif" alt="Setup Guide" class="guide-gif" onerror="this.parentElement.style.display='none'" />
+          <div class="guide-gif-overlay">🔍 Click to enlarge</div>
+        </div>
         <ol class="guide-steps">
           <li>Select some text on any article webpage.</li>
           <li>Right-click the text and choose <strong>Open in reading mode</strong>.</li>

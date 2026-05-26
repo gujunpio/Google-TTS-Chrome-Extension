@@ -329,10 +329,12 @@ const langOptions    = document.getElementById('lang-options');
 const voiceSelectEl  = document.getElementById('voice-select');
 const speedSliderEl  = document.getElementById('speed-slider');
 const speedDisplayEl = document.getElementById('speed-display');
-const btnPreview     = document.getElementById('btn-preview');
-const previewLabel   = document.getElementById('preview-label');
-const previewIcon    = document.getElementById('preview-icon');
-const voicesBadge    = document.getElementById('voices-badge');
+const btnPreview       = document.getElementById('btn-preview');
+const previewLabel     = document.getElementById('preview-label');
+const previewIcon      = document.getElementById('preview-icon');
+const btnReadSelected  = document.getElementById('btn-read-selected');
+const readLabel        = document.getElementById('read-label');
+const voicesBadge      = document.getElementById('voices-badge');
 const naturalVoiceHint = document.getElementById('natural-voice-hint');
 const guideModal       = document.getElementById('guide-modal');
 const openGuideBtn     = document.getElementById('open-guide-btn');
@@ -663,8 +665,8 @@ function updateVoiceSelect() {
     return name.includes('natural') || name.includes('google');
   };
 
-  // Check if there's any natural voice for this language
-  const hasNatural = voices.some(isPreferred);
+  // Check if there's any specifically "natural" voice for this language
+  const hasNatural = voices.some(v => (v.name || '').toLowerCase().includes('natural'));
   
   // CORE_LANGUAGES have natural voices. Check if the selected lang is supported
   const hasNaturalSupport = selectedLang !== 'auto' && CORE_LANGUAGES.some(c => {
@@ -890,6 +892,50 @@ function setupEvents() {
       btnRefreshVoices.textContent = '🔄 Refresh Voices';
       guideModal.classList.remove('active');
     }, 1500);
+  });
+
+  const guideGifContainer = document.getElementById('guide-gif-container');
+  if (guideGifContainer) {
+    guideGifContainer.addEventListener('click', () => {
+      chrome.tabs.create({ url: chrome.runtime.getURL('guide.gif') });
+    });
+  }
+
+  // Read selected text button
+  btnReadSelected.addEventListener('click', async () => {
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab) return;
+
+      const results = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => window.getSelection().toString().trim()
+      });
+      
+      const text = results[0]?.result;
+      if (!text || text.length < 3) {
+        const originalText = readLabel.textContent;
+        readLabel.textContent = 'Select text first!';
+        setTimeout(() => readLabel.textContent = originalText, 2000);
+        return;
+      }
+
+      const doSpeak = () => chrome.tabs.sendMessage(tab.id, { action: 'speak', text });
+
+      // Ping to check if content script is loaded
+      chrome.tabs.sendMessage(tab.id, { action: 'ping' }).then(doSpeak).catch(() => {
+        chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['content.js']
+        }).then(() => setTimeout(doSpeak, 300)).catch(() => {});
+      });
+      
+      window.close(); // Close popup so user can view the page while reading
+    } catch (e) {
+      console.error('Cannot read selection', e);
+      readLabel.textContent = 'Error';
+      setTimeout(() => readLabel.textContent = 'Read Selected', 2000);
+    }
   });
 
   // Click outside closes dropdown
