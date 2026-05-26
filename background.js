@@ -1,8 +1,8 @@
 // Chrome TTS — background.js
-// Service Worker: creates context menu and relays speak messages to content script
+// Service Worker: thin relay between context menu and content script.
+// All TTS logic lives in content.js using window.speechSynthesis.
 
 chrome.runtime.onInstalled.addListener(() => {
-  // Remove existing menu items to avoid duplicates
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({
       id: 'speak-selection',
@@ -13,24 +13,23 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId === 'speak-selection' && info.selectionText && tab?.id) {
-    chrome.tabs.sendMessage(tab.id, {
-      action: 'speak',
-      text: info.selectionText
-    }).catch(err => {
-      // Content script may not be injected yet — inject it manually
-      chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        files: ['content.js']
-      }).then(() => {
-        // Retry after injection
-        setTimeout(() => {
-          chrome.tabs.sendMessage(tab.id, {
-            action: 'speak',
-            text: info.selectionText
-          }).catch(() => {});
-        }, 300);
-      }).catch(() => {});
-    });
-  }
+  if (info.menuItemId !== 'speak-selection' || !info.selectionText || !tab?.id) return;
+  const text = info.selectionText.trim();
+  if (text.length < 3) return;
+
+  const doSpeak = () => {
+    chrome.tabs.sendMessage(tab.id, { action: 'speak', text });
+  };
+
+  // Ping to check if content script is loaded
+  chrome.tabs.sendMessage(tab.id, { action: 'ping' }).then(() => {
+    doSpeak();
+  }).catch(() => {
+    chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: ['content.js']
+    }).then(() => {
+      setTimeout(doSpeak, 300);
+    }).catch(() => {});
+  });
 });

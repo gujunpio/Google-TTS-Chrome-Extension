@@ -3,7 +3,8 @@
   "name": "Chrome TTS",
   "version": "1.0.0",
   "description": "Select text, right-click, and listen — powered by Chrome's built-in Natural voices. No API keys, fully private.",
-  "permissions": ["contextMenus", "storage", "activeTab", "scripting"],
+  "permissions": ["contextMenus", "storage", "activeTab", "scripting", "tts"],
+  "host_permissions": ["https://translate.google.com/*", "https://translate.googleapis.com/*"],
   "background": {
     "service_worker": "background.js"
   },

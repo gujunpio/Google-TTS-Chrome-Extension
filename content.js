@@ -1,5 +1,5 @@
 // Chrome TTS — content.js
-// TTS Engine + Shadow DOM Floating Player
+// Full TTS engine using window.speechSynthesis + Shadow DOM Floating Player
 // Injected into all pages via manifest content_scripts
 
 (function () {
@@ -9,72 +9,90 @@
   if (window.__chromeTTSLoaded) return;
   window.__chromeTTSLoaded = true;
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // 1. VOICE MANAGEMENT
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════
+  // 1. STATE
+  // ═══════════════════════════════════════════════
 
   let allVoices = [];
+  let isPlaying = false;
+  let isPaused = false;
+  let currentSpeed = 1.0;
+
+  // ═══════════════════════════════════════════════
+  // 2. VOICE LOADING — speechSynthesis
+  // ═══════════════════════════════════════════════
 
   function loadVoices() {
-    allVoices = speechSynthesis.getVoices();
-    if (allVoices.length === 0) {
-      speechSynthesis.onvoiceschanged = () => {
-        allVoices = speechSynthesis.getVoices();
-      };
-    }
+    allVoices = window.speechSynthesis.getVoices();
+    // Log for debugging
+    console.log('[ChromeTTS] Voices loaded:', allVoices.length,
+      allVoices.filter(v => v.name.includes('Natural')).map(v => v.name));
   }
 
+  // CRITICAL: voices load asynchronously. Must use onvoiceschanged.
   loadVoices();
-
-  /**
-   * Returns the best matching voice for a given language code.
-   * Prioritizes voices with "Natural" or "Google" in their name.
-   */
-  function getPreferredVoice(langCode) {
-    if (!langCode || langCode === 'auto') return null;
-    const prefix = langCode.toLowerCase().replace('_', '-');
-    const matching = allVoices.filter(v =>
-      v.lang.toLowerCase().replace('_', '-').startsWith(prefix)
-    );
-    if (matching.length === 0) return null;
-    const natural = matching.find(v =>
-      v.name.toLowerCase().includes('natural') ||
-      v.name.toLowerCase().includes('google')
-    );
-    return natural || matching[0];
+  if (window.speechSynthesis.onvoiceschanged !== undefined) {
+    window.speechSynthesis.onvoiceschanged = loadVoices;
   }
+  // Also retry after delays (some Chrome versions are slow)
+  setTimeout(loadVoices, 500);
+  setTimeout(loadVoices, 2000);
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // 2. LANGUAGE DETECTION
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════
+  // 3. LANGUAGE DETECTION
+  // ═══════════════════════════════════════════════
 
   function detectLang(text) {
-    if (/[àáảãạăắặẵẳâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵđ]/i.test(text)) return 'vi';
-    if (/[\u3040-\u309F\u30A0-\u30FF]/.test(text)) return 'ja';
-    if (/[\uAC00-\uD7AF\u1100-\u11FF]/.test(text)) return 'ko';
+    if (/[àáảãạăắặẵẳâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵđ]/i.test(text)) return 'vi-VN';
+    if (/[\u3040-\u309F\u30A0-\u30FF]/.test(text)) return 'ja-JP';
+    if (/[\uAC00-\uD7AF\u1100-\u11FF]/.test(text)) return 'ko-KR';
     if (/[\u4E00-\u9FFF\u3400-\u4DBF]/.test(text)) return 'zh-CN';
-    if (/[\u0E00-\u0E7F]/.test(text)) return 'th';
-    if (/[\u0600-\u06FF]/.test(text)) return 'ar';
-    if (/[\u0400-\u04FF]/.test(text)) return 'ru';
-    if (/[\u0900-\u097F]/.test(text)) return 'hi';
+    if (/[\u0E00-\u0E7F]/.test(text)) return 'th-TH';
+    if (/[\u0600-\u06FF]/.test(text)) return 'ar-SA';
+    if (/[\u0400-\u04FF]/.test(text)) return 'ru-RU';
+    if (/[\u0900-\u097F]/.test(text)) return 'hi-IN';
     return 'en-US';
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // 3. TEXT CHUNKING
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════
+  // 4. VOICE RESOLUTION — Prefer Natural > Google > Others
+  // ═══════════════════════════════════════════════
 
-  function chunkText(text) {
-    const MAX_WORDS = 200;
-    // Split on sentence-ending punctuation followed by whitespace
+  function getPreferredVoice(langCode) {
+    if (!langCode || langCode === 'auto') return null;
+    const prefix = langCode.toLowerCase().replace('_', '-');
+    const basePrefix = prefix.split('-')[0];
+
+    // Find all matching voices for this language
+    const matching = allVoices.filter(v => {
+      const vl = (v.lang || '').toLowerCase().replace('_', '-');
+      return vl === prefix || vl.startsWith(prefix + '-') ||
+             vl === basePrefix || vl.startsWith(basePrefix + '-');
+    });
+    if (matching.length === 0) return null;
+
+    // Priority: Natural voices first, then Google, then others
+    const natural = matching.filter(v => v.name.includes('Natural'));
+    if (natural.length > 0) return natural[0];
+
+    const google = matching.filter(v => v.name.toLowerCase().includes('google'));
+    if (google.length > 0) return google[0];
+
+    return matching[0];
+  }
+
+  // ═══════════════════════════════════════════════
+  // 5. TEXT CHUNKING
+  // ═══════════════════════════════════════════════
+
+  function chunkText(text, maxWords = 150) {
     const sentences = text.split(/(?<=[.!?。！？])\s+/);
     const chunks = [];
     let current = '';
     let wordCount = 0;
-
     for (const sentence of sentences) {
       const words = sentence.split(/\s+/).length;
-      if (wordCount + words > MAX_WORDS && current.trim()) {
+      if (wordCount + words > maxWords && current.trim()) {
         chunks.push(current.trim());
         current = sentence + ' ';
         wordCount = words;
@@ -83,145 +101,218 @@
         wordCount += words;
       }
     }
-
     if (current.trim()) chunks.push(current.trim());
     return chunks.length > 0 ? chunks : [text];
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // 4. TTS CONTROLLER
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════
+  // 6. TTS CONTROLLER — using window.speechSynthesis
+  // ═══════════════════════════════════════════════
 
-  const TTSController = {
+  const TTS = {
     queue: [],
     currentIndex: 0,
-    isPlaying: false,
-    isPaused: false,
-    currentVoice: null,
-    currentRate: 1.0,
+    utterance: null,
 
-    // Callbacks
-    onProgress: null,
-    onEnd: null,
-    onChunkStart: null,
-
-    speak(text, voiceName, rate) {
+    async start(text) {
       this.stop();
       if (!text || text.trim().length < 3) return;
 
-      this.currentRate = parseFloat(rate) || 1.0;
-      this.queue = chunkText(text);
-      this.currentIndex = 0;
-      this.isPlaying = true;
-      this.isPaused = false;
-
-      // Resolve voice
-      this.currentVoice = null;
-      if (voiceName) {
-        this.currentVoice = allVoices.find(v => v.name === voiceName) || null;
+      // Ensure voices are loaded
+      if (allVoices.length === 0) {
+        loadVoices();
+        // Wait up to 3s for voices to load
+        await new Promise(resolve => {
+          let attempts = 0;
+          const check = () => {
+            loadVoices();
+            if (allVoices.length > 0 || attempts++ > 30) resolve();
+            else setTimeout(check, 100);
+          };
+          check();
+        });
       }
 
-      this._playNext();
+      // Load settings
+      const settings = await new Promise(r => {
+        chrome.storage.sync.get(['voiceName', 'lang', 'rate', 'autoDetect'], r);
+      });
+
+      const rate = parseFloat(settings.rate) || 1.0;
+      currentSpeed = rate;
+      const autoDetect = settings.autoDetect !== false;
+      const savedVoiceName = settings.voiceName || null;
+
+      // Resolve voice
+      let voice = null;
+      let lang = null;
+
+      if (autoDetect) {
+        const detectedLang = detectLang(text);
+        lang = detectedLang;
+
+        // If saved voice matches detected language, use it
+        if (savedVoiceName) {
+          const savedVoice = allVoices.find(v => v.name === savedVoiceName);
+          if (savedVoice) {
+            const savedBase = savedVoice.lang.toLowerCase().split('-')[0];
+            const detectedBase = detectedLang.toLowerCase().split('-')[0];
+            if (savedBase === detectedBase) {
+              voice = savedVoice;
+            }
+          }
+        }
+
+        if (!voice) {
+          voice = getPreferredVoice(detectedLang);
+        }
+      } else {
+        // Manual mode
+        if (savedVoiceName) {
+          voice = allVoices.find(v => v.name === savedVoiceName);
+        }
+        if (!voice && settings.lang && settings.lang !== 'auto') {
+          voice = getPreferredVoice(settings.lang);
+        }
+        lang = settings.lang || 'en-US';
+      }
+
+      // Chunk text
+      this.queue = chunkText(text);
+      this.currentIndex = 0;
+      isPlaying = true;
+      isPaused = false;
+
+      // Store resolved voice + rate for playback
+      this._voice = voice;
+      this._rate = rate;
+      this._lang = lang;
+
+      // Show player
+      showPlayer(text);
+      setActiveSpeed(rate);
+
+      // Start playback
+      this.playNextChunk();
     },
 
-    _playNext() {
-      if (!this.isPlaying) return;
+    playNextChunk() {
+      if (!isPlaying) return;
       if (this.currentIndex >= this.queue.length) {
-        this.isPlaying = false;
-        if (this.onEnd) this.onEnd();
+        isPlaying = false;
+        isPaused = false;
+        setStatus('Done ✓');
+        setProgress(1, 1);
+        const icon = shadow && shadow.getElementById('tts-icon');
+        if (icon) { icon.classList.remove('pulse'); icon.textContent = '✓'; }
+        setTimeout(() => {
+          hidePlayer();
+          const icon2 = shadow && shadow.getElementById('tts-icon');
+          if (icon2) icon2.textContent = '🔊';
+        }, 2200);
         return;
       }
 
-      const chunkText = this.queue[this.currentIndex];
-      const utterance = new SpeechSynthesisUtterance(chunkText);
+      const chunk = this.queue[this.currentIndex];
+      const total = this.queue.length;
+      const current = this.currentIndex;
 
-      if (this.currentVoice) {
-        utterance.voice = this.currentVoice;
-        utterance.lang = this.currentVoice.lang;
+      // Update UI
+      const preview = shadow && shadow.getElementById('tts-preview');
+      if (preview) {
+        preview.textContent = chunk.length > 180 ? chunk.slice(0, 180) + '…' : chunk;
       }
-      utterance.rate = this.currentRate;
+      setProgress(current, total);
+      setStatus(`Reading ${current + 1} / ${total}`);
 
-      utterance.onstart = () => {
-        if (this.onChunkStart) this.onChunkStart(this.currentIndex, this.queue.length, chunkText);
-      };
+      // Create utterance
+      const utterance = new SpeechSynthesisUtterance(chunk);
+      if (this._voice) utterance.voice = this._voice;
+      if (this._lang) utterance.lang = this._lang;
+      utterance.rate = this._rate || 1.0;
 
       utterance.onend = () => {
         this.currentIndex++;
-        if (this.isPlaying) this._playNext();
+        this.playNextChunk();
       };
 
       utterance.onerror = (e) => {
-        if (e.error === 'interrupted' || e.error === 'canceled') return;
-        console.warn('[ChromeTTS] Error on chunk', this.currentIndex, ':', e.error);
+        console.warn('[ChromeTTS] Utterance error:', e);
         this.currentIndex++;
-        if (this.isPlaying) this._playNext();
+        this.playNextChunk();
       };
 
-      if (this.onProgress) {
-        this.onProgress(this.currentIndex, this.queue.length);
-      }
-
-      speechSynthesis.speak(utterance);
+      this.utterance = utterance;
+      window.speechSynthesis.cancel(); // Cancel any previous
+      window.speechSynthesis.speak(utterance);
     },
 
     pause() {
-      if (this.isPlaying && !this.isPaused) {
-        speechSynthesis.pause();
-        this.isPaused = true;
+      if (isPlaying && !isPaused) {
+        window.speechSynthesis.pause();
+        isPaused = true;
+        setPauseIcon(true);
+        setStatus('Paused');
+        const icon = shadow && shadow.getElementById('tts-icon');
+        if (icon) icon.classList.remove('pulse');
       }
     },
 
     resume() {
-      if (this.isPaused) {
-        speechSynthesis.resume();
-        this.isPaused = false;
+      if (isPaused) {
+        window.speechSynthesis.resume();
+        isPaused = false;
+        setPauseIcon(false);
+        setStatus('Reading...');
+        const icon = shadow && shadow.getElementById('tts-icon');
+        if (icon) icon.classList.add('pulse');
       }
     },
 
     stop() {
-      speechSynthesis.cancel();
-      this.isPlaying = false;
-      this.isPaused = false;
+      window.speechSynthesis.cancel();
+      isPlaying = false;
+      isPaused = false;
       this.queue = [];
       this.currentIndex = 0;
+      this.utterance = null;
     },
 
     setRate(rate) {
-      const newRate = parseFloat(rate) || 1.0;
-      this.currentRate = newRate;
-      // If currently speaking, cancel and restart this chunk immediately with new rate
-      if (this.isPlaying && !this.isPaused && this.queue.length > 0) {
-        speechSynthesis.cancel();
-        // Small delay lets speechSynthesis.cancel() fully propagate before new speak()
+      this._rate = parseFloat(rate) || 1.0;
+      currentSpeed = this._rate;
+      if (isPlaying && !isPaused && this.queue.length > 0) {
+        // Restart current chunk with new rate
+        window.speechSynthesis.cancel();
         setTimeout(() => {
-          if (this.isPlaying) this._playNext();
+          if (isPlaying) this.playNextChunk();
         }, 80);
       }
     },
 
     skipBack() {
-      const newIndex = Math.max(0, this.currentIndex - 1);
-      speechSynthesis.cancel();
-      this.currentIndex = newIndex;
-      this.isPaused = false;
-      if (this.isPlaying) this._playNext();
+      this.currentIndex = Math.max(0, this.currentIndex - 1);
+      window.speechSynthesis.cancel();
+      isPaused = false;
+      setPauseIcon(false);
+      if (isPlaying) this.playNextChunk();
     },
 
     skipForward() {
-      speechSynthesis.cancel();
       this.currentIndex = Math.min(this.currentIndex + 1, this.queue.length - 1);
-      this.isPaused = false;
-      if (this.isPlaying) this._playNext();
+      window.speechSynthesis.cancel();
+      isPaused = false;
+      setPauseIcon(false);
+      if (isPlaying) this.playNextChunk();
     }
   };
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // 5. FLOATING PLAYER — SHADOW DOM
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════
+  // 7. FLOATING PLAYER — SHADOW DOM
+  // ═══════════════════════════════════════════════
 
   let playerHost = null;
   let shadow = null;
-  let currentSpeed = 1.0;
 
   const PLAYER_CSS = `
     :host {
@@ -490,6 +581,10 @@
     `;
   }
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // PLAYER UI FUNCTIONS
+  // ─────────────────────────────────────────────────────────────────────────────
+
   function createPlayer() {
     if (playerHost) return;
 
@@ -571,9 +666,9 @@
     el.style.width = pct + '%';
   }
 
-  function setPauseIcon(isPaused) {
+  function setPauseIcon(paused) {
     const btn = shadow && shadow.getElementById('tts-playpause');
-    if (btn) btn.textContent = isPaused ? '▶' : '⏸';
+    if (btn) btn.textContent = paused ? '▶' : '⏸';
   }
 
   function setActiveSpeed(speed) {
@@ -584,51 +679,42 @@
     });
   }
 
+  // ═══════════════════════════════════════════════
+  // 8. PLAYER EVENTS
+  // ═══════════════════════════════════════════════
+
   function setupPlayerEvents() {
     // Close
     shadow.getElementById('tts-close').addEventListener('click', () => {
-      TTSController.stop();
+      TTS.stop();
+      isPlaying = false;
+      isPaused = false;
       hidePlayer();
     });
 
-    // Play / Pause toggle
+    // Play/Pause toggle
     shadow.getElementById('tts-playpause').addEventListener('click', () => {
-      if (TTSController.isPaused) {
-        TTSController.resume();
-        setPauseIcon(false);
-        setStatus('Reading...');
-        const icon = shadow.getElementById('tts-icon');
-        if (icon) icon.classList.add('pulse');
-      } else {
-        TTSController.pause();
-        setPauseIcon(true);
-        setStatus('Paused');
-        const icon = shadow.getElementById('tts-icon');
-        if (icon) icon.classList.remove('pulse');
-      }
+      if (isPaused) TTS.resume();
+      else TTS.pause();
     });
 
     // Skip back
     shadow.getElementById('tts-skipback').addEventListener('click', () => {
-      TTSController.skipBack();
-      setPauseIcon(false);
-      setStatus('Reading...');
+      TTS.skipBack();
     });
 
     // Skip forward
     shadow.getElementById('tts-skipfwd').addEventListener('click', () => {
-      TTSController.skipForward();
-      setPauseIcon(false);
-      setStatus('Reading...');
+      TTS.skipForward();
     });
 
     // Speed buttons
     shadow.getElementById('tts-speeds').addEventListener('click', e => {
       const btn = e.target.closest('.speed-btn');
       if (!btn) return;
-      currentSpeed = parseFloat(btn.dataset.speed);
-      TTSController.setRate(currentSpeed);
-      setActiveSpeed(currentSpeed);
+      const speed = parseFloat(btn.dataset.speed);
+      TTS.setRate(speed);
+      setActiveSpeed(speed);
     });
 
     // ── Dragging ──────────────────────────────────────────────────────────────
@@ -669,140 +755,20 @@
     });
   }
 
-  // ── TTS Controller Callbacks ─────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════
+  // 9. MESSAGE LISTENER
+  // ═══════════════════════════════════════════════
 
-  TTSController.onProgress = (current, total) => {
-    setProgress(current, total);
-  };
-
-  TTSController.onChunkStart = (current, total, _text) => {
-    setProgress(current, total);
-    setStatus(`Reading ${current + 1} / ${total}`);
-  };
-
-  TTSController.onEnd = () => {
-    setStatus('Done ✓');
-    setPauseIcon(false);
-    setProgress(1, 1);
-    const icon = shadow && shadow.getElementById('tts-icon');
-    if (icon) {
-      icon.classList.remove('pulse');
-      icon.textContent = '✓';
+  chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    switch (msg.action) {
+      case 'speak':
+        TTS.start(msg.text);
+        break;
+      case 'ping':
+        sendResponse({ status: 'ok' });
+        break;
     }
-    setTimeout(() => {
-      hidePlayer();
-      if (shadow) {
-        const icon2 = shadow.getElementById('tts-icon');
-        if (icon2) icon2.textContent = '🔊';
-      }
-    }, 2200);
-  };
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // 6. MAIN MESSAGE LISTENER
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  chrome.runtime.onMessage.addListener((msg) => {
-    if (msg.action !== 'speak') return;
-    const text = (msg.text || '').trim();
-    if (text.length < 3) return;
-
-    // Check TTS support
-    if (!window.speechSynthesis) {
-      alert('Your browser does not support Text-to-Speech.');
-      return;
-    }
-
-    chrome.storage.sync.get(['voiceName', 'lang', 'rate', 'autoDetect'], (settings) => {
-      const rate = parseFloat(settings.rate) || 1.0;
-      currentSpeed = rate;
-
-      let voiceName = null;
-      const savedVoiceName = settings.voiceName || null;
-      const autoDetect = settings.autoDetect !== false; // default true
-
-      if (autoDetect) {
-        // Detect language from the text content
-        const detectedLang = detectLang(text);
-        const detectedPrefix = detectedLang.toLowerCase().replace('_', '-').split('-')[0];
-
-        if (savedVoiceName) {
-          // Check if the user's chosen voice matches the detected language
-          const savedVoice = allVoices.find(v => v.name === savedVoiceName);
-          const savedLangPrefix = savedVoice
-            ? savedVoice.lang.toLowerCase().replace('_', '-').split('-')[0]
-            : '';
-
-          if (savedVoice && savedLangPrefix === detectedPrefix) {
-            // ✅ User's saved voice matches the detected language → honor their choice
-            voiceName = savedVoiceName;
-          } else {
-            // ⚡ Detected language differs from saved voice → auto-pick best for detected lang
-            const autoVoice = getPreferredVoice(detectedLang);
-            if (autoVoice) voiceName = autoVoice.name;
-          }
-        } else {
-          // No voice saved yet → auto-pick best for detected language
-          const autoVoice = getPreferredVoice(detectedLang);
-          if (autoVoice) voiceName = autoVoice.name;
-        }
-
-      } else {
-        // Auto-detect OFF → always use exactly the voice the user selected
-        voiceName = savedVoiceName;
-        // Fallback only if no voice has been selected yet
-        if (!voiceName && settings.lang && settings.lang !== 'auto') {
-          const fallbackVoice = getPreferredVoice(settings.lang);
-          if (fallbackVoice) voiceName = fallbackVoice.name;
-        }
-      }
-
-      showPlayer(text);
-
-      const startSpeaking = () => {
-        TTSController.speak(text, voiceName, rate);
-      };
-
-      if (allVoices.length === 0) {
-        setStatus('Loading voices…');
-        let retries = 0;
-        const interval = setInterval(() => {
-          allVoices = speechSynthesis.getVoices();
-          retries++;
-          if (allVoices.length > 0 || retries >= 10) {
-            clearInterval(interval);
-            startSpeaking();
-          }
-        }, 500);
-      } else {
-        startSpeaking();
-      }
-    });
-  });
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // 7. TAB VISIBILITY — Pause when tab is hidden
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  document.addEventListener('visibilitychange', () => {
-    if (!TTSController.isPlaying) return;
-    if (document.hidden) {
-      if (!TTSController.isPaused) {
-        TTSController.pause();
-        setStatus('Paused (tab inactive)');
-        setPauseIcon(true);
-        const icon = shadow && shadow.getElementById('tts-icon');
-        if (icon) icon.classList.remove('pulse');
-      }
-    } else {
-      if (TTSController.isPaused) {
-        TTSController.resume();
-        setStatus('Reading...');
-        setPauseIcon(false);
-        const icon = shadow && shadow.getElementById('tts-icon');
-        if (icon) icon.classList.add('pulse');
-      }
-    }
+    return true;
   });
 
 })();
