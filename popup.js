@@ -657,14 +657,6 @@ function updateVoiceSelect() {
   // Apply quality filter and deduplicate
   voices = deduplicateVoices(voices.filter(isUsableVoice));
 
-  if (voices.length === 0) {
-    const opt = document.createElement('option');
-    opt.value = '';
-    opt.textContent = 'No voices found';
-    voiceSelectEl.appendChild(opt);
-    return;
-  }
-
   // Sort: Natural/Google voices first, then alphabetical
   const isPreferred = v => {
     const name = (v.name || '').toLowerCase();
@@ -686,6 +678,16 @@ function updateVoiceSelect() {
   } else {
     naturalVoiceHint.style.display = 'none';
   }
+
+  if (voices.length === 0) {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = 'No voices found';
+    voiceSelectEl.appendChild(opt);
+    return;
+  }
+
+
 
   voices.sort((a, b) => {
     const ap = isPreferred(a), bp = isPreferred(b);
