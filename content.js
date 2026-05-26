@@ -114,6 +114,14 @@
     currentIndex: 0,
     utterance: null,
 
+    _cancelCurrent() {
+      if (this.utterance) {
+        this.utterance.onend = null;
+        this.utterance.onerror = null;
+      }
+      window.speechSynthesis.cancel();
+    },
+
     async start(text) {
       this.stop();
       if (!text || text.trim().length < 3) return;
@@ -242,8 +250,8 @@
         this.playNextChunk();
       };
 
+      this._cancelCurrent();
       this.utterance = utterance;
-      window.speechSynthesis.cancel(); // Cancel any previous
       window.speechSynthesis.speak(utterance);
     },
 
@@ -270,7 +278,7 @@
     },
 
     stop() {
-      window.speechSynthesis.cancel();
+      this._cancelCurrent();
       isPlaying = false;
       isPaused = false;
       this.queue = [];
@@ -283,7 +291,7 @@
       currentSpeed = this._rate;
       if (isPlaying && !isPaused && this.queue.length > 0) {
         // Restart current chunk with new rate
-        window.speechSynthesis.cancel();
+        this._cancelCurrent();
         setTimeout(() => {
           if (isPlaying) this.playNextChunk();
         }, 80);
@@ -292,7 +300,7 @@
 
     skipBack() {
       this.currentIndex = Math.max(0, this.currentIndex - 1);
-      window.speechSynthesis.cancel();
+      this._cancelCurrent();
       isPaused = false;
       setPauseIcon(false);
       if (isPlaying) this.playNextChunk();
@@ -300,7 +308,7 @@
 
     skipForward() {
       this.currentIndex = Math.min(this.currentIndex + 1, this.queue.length - 1);
-      window.speechSynthesis.cancel();
+      this._cancelCurrent();
       isPaused = false;
       setPauseIcon(false);
       if (isPlaying) this.playNextChunk();

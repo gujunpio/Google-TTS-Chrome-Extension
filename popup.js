@@ -377,7 +377,10 @@ function init() {
  */
 function isUsableVoice(v) {
   const name = (v.name || '').toLowerCase();
-  return !name.includes('espeak') && !name.includes('espeakng');
+  return !name.includes('espeak') && 
+         !name.includes('espeakng') && 
+         !name.includes('chrome os') && 
+         !name.includes('microsoft');
 }
 
 /**
