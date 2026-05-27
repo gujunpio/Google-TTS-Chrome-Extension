@@ -42,7 +42,41 @@
   // 3. LANGUAGE DETECTION
   // ═══════════════════════════════════════════════
 
+  // ── Language code → display info (flag + short name) ──────────────────────
+  const LANG_DISPLAY = {
+    'vi-VN': { flag: '\uD83C\uDDFB\uD83C\uDDF3', name: 'Tiếng Việt' },
+    'en-US': { flag: '\uD83C\uDDFA\uD83C\uDDF8', name: 'English (US)' },
+    'en-GB': { flag: '\uD83C\uDDEC\uD83C\uDDE7', name: 'English (UK)' },
+    'ja-JP': { flag: '\uD83C\uDDEF\uD83C\uDDF5', name: '日本語' },
+    'ko-KR': { flag: '\uD83C\uDDF0\uD83C\uDDF7', name: '한국어' },
+    'zh-CN': { flag: '\uD83C\uDDE8\uD83C\uDDF3', name: '中文(简)' },
+    'zh-TW': { flag: '\uD83C\uDDF9\uD83C\uDDFC', name: '中文(繁)' },
+    'th-TH': { flag: '\uD83C\uDDF9\uD83C\uDDED', name: 'ภาษาไทย' },
+    'ar-SA': { flag: '\uD83C\uDDF8\uD83C\uDDE6', name: 'العربية' },
+    'ru-RU': { flag: '\uD83C\uDDF7\uD83C\uDDFA', name: 'Русский' },
+    'hi-IN': { flag: '\uD83C\uDDEE\uD83C\uDDF3', name: 'हिन्दी' },
+    'es-ES': { flag: '\uD83C\uDDEA\uD83C\uDDF8', name: 'Español' },
+    'es-MX': { flag: '\uD83C\uDDF2\uD83C\uDDFD', name: 'Español (MX)' },
+    'de-DE': { flag: '\uD83C\uDDE9\uD83C\uDDEA', name: 'Deutsch' },
+    'fr-FR': { flag: '\uD83C\uDDEB\uD83C\uDDF7', name: 'Français' },
+    'it-IT': { flag: '\uD83C\uDDEE\uD83C\uDDF9', name: 'Italiano' },
+    'pt-BR': { flag: '\uD83C\uDDE7\uD83C\uDDF7', name: 'Português (BR)' },
+    'pt-PT': { flag: '\uD83C\uDDF5\uD83C\uDDF9', name: 'Português (PT)' },
+    'nl-NL': { flag: '\uD83C\uDDF3\uD83C\uDDF1', name: 'Nederlands' },
+    'pl-PL': { flag: '\uD83C\uDDF5\uD83C\uDDF1', name: 'Polski' },
+    'tr-TR': { flag: '\uD83C\uDDF9\uD83C\uDDF7', name: 'Türkçe' },
+    'id-ID': { flag: '\uD83C\uDDEE\uD83C\uDDE9', name: 'Indonesia' },
+  };
+
+  function getLangDisplay(langCode) {
+    if (!langCode) return null;
+    return LANG_DISPLAY[langCode] || LANG_DISPLAY[langCode.split('-')[0] + '-' + langCode.split('-')[0].toUpperCase()]
+           || { flag: '\uD83C\uDF10', name: langCode };
+  }
+
+  // ── Language detection ────────────────────────────────────────────────────
   function detectLang(text) {
+    // 1. Script-based detection (high precision for non-Latin scripts)
     if (/[àáảãạăắặẵẳâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵđ]/i.test(text)) return 'vi-VN';
     if (/[\u3040-\u309F\u30A0-\u30FF]/.test(text)) return 'ja-JP';
     if (/[\uAC00-\uD7AF\u1100-\u11FF]/.test(text)) return 'ko-KR';
@@ -51,7 +85,31 @@
     if (/[\u0600-\u06FF]/.test(text)) return 'ar-SA';
     if (/[\u0400-\u04FF]/.test(text)) return 'ru-RU';
     if (/[\u0900-\u097F]/.test(text)) return 'hi-IN';
-    return 'en-US';
+
+    // 2. Latin-script heuristics — count high-frequency marker words per language
+    const t = ' ' + text.toLowerCase() + ' ';
+
+    // Helper: count word matches
+    const countMatches = (words) => words.reduce((n, w) => n + (t.includes(' ' + w + ' ') ? 1 : 0), 0);
+
+    const scores = {
+      'de-DE': countMatches(['der', 'die', 'das', 'und', 'ist', 'ein', 'eine', 'nicht', 'auch', 'mit', 'auf', 'für', 'von', 'dem', 'den', 'des', 'sich', 'bei', 'nach', 'als', 'werden', 'oder', 'aber', 'wenn', 'kann', 'noch', 'mehr', 'durch', 'über']),
+      'es-ES': countMatches(['que', 'del', 'los', 'las', 'con', 'por', 'una', 'para', 'como', 'más', 'pero', 'sus', 'sin', 'sobre', 'entre', 'cuando', 'muy', 'también', 'hasta', 'desde', 'hay', 'fue', 'ser', 'esto', 'este']),
+      'fr-FR': countMatches(['les', 'des', 'que', 'qui', 'dans', 'une', 'sur', 'est', 'avec', 'pas', 'par', 'mais', 'pour', 'plus', 'tout', 'son', 'ses', 'dit', 'cette', 'sont', 'leur', 'aussi', 'très', 'elle', 'nous']),
+      'it-IT': countMatches(['che', 'del', 'dei', 'una', 'per', 'con', 'sono', 'come', 'anche', 'dalla', 'della', 'degli', 'nelle', 'sulla', 'questo', 'quando', 'essere', 'loro', 'alla', 'tutto', 'più', 'già', 'così']),
+      'pt-BR': countMatches(['que', 'não', 'uma', 'com', 'para', 'por', 'são', 'mas', 'como', 'isso', 'ela', 'seu', 'seus', 'mais', 'bem', 'também', 'pelo', 'pela', 'esse', 'esta', 'dos', 'das']),
+      'nl-NL': countMatches(['van', 'het', 'een', 'zijn', 'met', 'voor', 'niet', 'maar', 'ook', 'dat', 'aan', 'bij', 'wordt', 'worden', 'heeft', 'hebben']),
+      'tr-TR': countMatches(['bir', 've', 'bu', 'ile', 'için', 'olan', 'gibi', 'daha', 'ama', 'çok', 'olarak', 'kadar', 'sonra', 'ise']),
+      'pl-PL': countMatches(['że', 'nie', 'się', 'jest', 'jak', 'ale', 'czy', 'już', 'tego', 'przez', 'jego', 'jej', 'ich', 'jak']),
+      'id-ID': countMatches(['yang', 'dan', 'di', 'ini', 'itu', 'dengan', 'untuk', 'tidak', 'ada', 'atau', 'dari', 'pada', 'juga', 'lebih', 'akan']),
+    };
+
+    // Pick highest scoring language if it beats threshold
+    let best = 'en-US', bestScore = 2; // min threshold = 2 matches
+    for (const [lang, score] of Object.entries(scores)) {
+      if (score > bestScore) { best = lang; bestScore = score; }
+    }
+    return best;
   }
 
   // ═══════════════════════════════════════════════
@@ -196,8 +254,8 @@
       this._rate = rate;
       this._lang = lang;
 
-      // Show player
-      showPlayer(text);
+      // Show player with detected language info
+      showPlayer(text, lang, voice ? voice.name : null);
       setActiveSpeed(rate);
 
       // Start playback
@@ -550,6 +608,25 @@
       border-color: #1E6FFF;
       color: #fff;
     }
+    /* ── Lang indicator pill ── */
+    .lang-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 20px;
+      padding: 2px 8px 2px 5px;
+      font-size: 10px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.9);
+      margin-top: 4px;
+      max-width: 200px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .lang-pill-flag { font-size: 12px; line-height: 1; }
   `;
 
   function buildPlayerHTML() {
@@ -561,6 +638,10 @@
             <div>
               <div class="header-title">Chrome TTS</div>
               <div class="header-status" id="tts-status">Reading...</div>
+              <div class="lang-pill" id="tts-lang-pill" style="display:none">
+                <span class="lang-pill-flag" id="tts-lang-flag"></span>
+                <span id="tts-lang-name"></span>
+              </div>
             </div>
           </div>
           <button class="close-btn" id="tts-close" title="Close">✕</button>
@@ -618,7 +699,7 @@
     setupPlayerEvents();
   }
 
-  function showPlayer(text) {
+  function showPlayer(text, langCode, voiceName) {
     createPlayer();
 
     // Restore last saved position
@@ -644,6 +725,21 @@
     const preview = shadow.getElementById('tts-preview');
     if (preview) {
       preview.textContent = text.length > 180 ? text.slice(0, 180) + '…' : text;
+    }
+
+    // Show language pill
+    const pill     = shadow.getElementById('tts-lang-pill');
+    const flagEl   = shadow.getElementById('tts-lang-flag');
+    const nameEl   = shadow.getElementById('tts-lang-name');
+    if (pill && langCode) {
+      const info = getLangDisplay(langCode);
+      flagEl.textContent = info.flag;
+      // Show: flag + lang name + voice short name if available
+      const voiceShort = voiceName ? ' · ' + voiceName.replace('Google ', '').replace(' Natural', '★').slice(0, 28) : '';
+      nameEl.textContent = info.name + voiceShort;
+      pill.style.display = 'inline-flex';
+    } else if (pill) {
+      pill.style.display = 'none';
     }
 
     playerHost.style.display = 'block';
