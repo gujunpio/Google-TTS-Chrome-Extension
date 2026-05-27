@@ -1,186 +1,108 @@
-# Chrome TTS — Natural Voice Text Reader
+# 🔊 Chrome TTS — Natural Voice Reader
 
-> A free, privacy-first Chrome Extension that reads selected text aloud using Chrome's built-in Natural voices. No API keys. No cloud. No tracking.
-
-![Chrome TTS](icons/icon-128.png)
+> Select text. Right-click. Listen. Powered by Chrome's built-in Neural voices — no API keys, no cloud, no tracking.
 
 ---
 
-## ✨ Features
+## ✨ What makes it special
 
-- 🔊 **Right-click to read** — Select any text, right-click → *Read Selected Text*
-- 🌍 **43 languages supported** — Auto-detect or manually pick your language & country
-- 🎙️ **Natural voices** — Uses Chrome's built-in Google Neural TTS voices (same as Chrome Reading Mode)
-- 🎛️ **Floating Player** — Beautiful draggable player with pause/resume/skip/speed controls
-- 💾 **Remembers position** — Player snaps back to where you left it
-- ⚡ **Instant speed change** — Adjust speed mid-sentence and it takes effect immediately
-- 🔒 **100% Private** — All processing is local in your browser. Zero data sent anywhere.
-- 📴 **Works offline** — No internet required (voices are built into Chrome)
-
----
-
-## 🖥️ Screenshots
-
-### Popup Settings
-Clean blue/white modern UI with language picker grouped by country flag.
-
-### Floating Player
-Draggable mini-player that appears on the page with play/pause, skip, and speed controls.
+| | |
+|---|---|
+| 🧠 **Smart Language Detection** | Google CLD3 engine auto-detects 33+ languages — same tech powering Google Translate |
+| 🔊 **Natural Neural Voices** | Uses Chrome's highest-quality built-in voices, same as Chrome Reading Mode |
+| 🌐 **Tab-Independent Audio** | Powered by `chrome.tts` API — audio **continues playing when you switch tabs** |
+| 🎛️ **Floating Mini Player** | Drag anywhere · Pause · Skip · Speed · Shows detected language flag |
+| 🔒 **100% Private** | Everything runs locally in your browser. Zero data sent anywhere. |
 
 ---
 
-## 🚀 Installation (Developer Mode)
-
-Until this extension is published on the Chrome Web Store:
-
-1. Download or clone this repository
-2. Open Chrome and navigate to `chrome://extensions`
-3. Enable **Developer mode** (top-right toggle)
-4. Click **Load unpacked**
-5. Select the project folder
-6. The 🔊 Chrome TTS icon will appear in your toolbar
-
----
-
-## 📖 How to Use
-
-1. **Select any text** on a webpage
-2. **Right-click** → choose **🔊 Read Selected Text**
-3. A floating player appears — use it to:
-   - ⏸ Pause / ▶ Resume
-   - ⏮ Skip back to previous sentence
-   - ⏭ Skip to next sentence
-   - Change speed: `0.75×` `1×` `1.25×` `1.5×` `2×`
-   - Drag the player anywhere on screen
-4. Player **auto-hides** when reading finishes
-
----
-
-## ⚙️ Settings (Popup)
-
-Click the extension icon in the toolbar to open settings:
-
-| Setting | Description |
-|---------|-------------|
-| **Auto-detect Language** | Automatically detects Vietnamese, Japanese, Korean, Chinese, Arabic, Thai, Russian, Hindi, and English from the selected text |
-| **Language / Country** | Manually pick a language, grouped by country with flag emoji |
-| **Voice** | Choose a specific voice — Google Neural voices marked with ★ appear first |
-| **Reading Speed** | Drag the slider from 0.5× (slow) to 2× (fast) |
-| **Preview** | Listen to a sample sentence in the selected language |
-
----
-
-## 🌍 Supported Languages
-
-The extension shows only languages for which your Chrome has installed voices.
-
-| Tier | Languages |
-|------|-----------|
-| **Full (5–10 voices)** | 🇺🇸 English (US), 🇬🇧 English (UK), 🇻🇳 Vietnamese |
-| **Good (2–3 voices)** | 🇩🇪 German, 🇫🇷 French, 🇯🇵 Japanese, 🇰🇷 Korean, 🇨🇳 Chinese, 🇧🇷 Portuguese, 🇮🇹 Italian, 🇪🇸 Spanish |
-| **Basic (1 voice)** | 🇮🇩 Indonesian, 🇹🇭 Thai, 🇷🇺 Russian, 🇹🇷 Turkish, 🇳🇱 Dutch, 🇵🇱 Polish, 🇸🇦 Arabic, 🇮🇳 Hindi, and 15+ more |
-
-> Voice quality and quantity depend on which voices Google has installed with your version of Chrome.
-
----
-
-## 🏗️ Project Structure
+## 🚀 Quick Start
 
 ```
-chrome-tts/
-├── manifest.json     — Manifest V3, permissions, service worker config
-├── background.js     — Creates context menu, relays messages to content script
-├── content.js        — TTS engine + Shadow DOM floating player (injected into all pages)
-├── popup.html        — Settings UI (blue/white modern theme, Inter font)
-├── popup.js          — Language picker, voice selector, speed slider, preview
-└── icons/
-    ├── icon-16.png
-    ├── icon-48.png
-    └── icon-128.png
+1. Load unpacked in chrome://extensions (Developer Mode)
+2. Select any text on a webpage
+3. Right-click → 🔊 Read Selected Text
 ```
+
+> **For Natural voices:** Pin *Reading Mode* to your toolbar once — the extension walks you through it.
 
 ---
 
-## 🔧 Technical Details
+## 🌍 Supported Languages (33+)
 
-### Architecture
+`🇻🇳 Vietnamese` `🇺🇸 English` `🇬🇧 English UK` `🇩🇪 German` `🇫🇷 French` `🇪🇸 Spanish`  
+`🇮🇹 Italian` `🇧🇷 Portuguese` `🇳🇱 Dutch` `🇵🇱 Polish` `🇹🇷 Turkish` `🇮🇩 Indonesian`  
+`🇯🇵 Japanese` `🇰🇷 Korean` `🇨🇳 Chinese` `🇷🇺 Russian` `🇸🇦 Arabic` `🇮🇳 Hindi`  
+`🇹🇭 Thai` `🇨🇿 Czech` `🇭🇺 Hungarian` `🇸🇪 Swedish` `🇫🇮 Finnish` `🇩🇰 Danish`  
+`🇬🇷 Greek` `🇺🇦 Ukrainian` `🇳🇴 Norwegian` `🇸🇰 Slovak` `🇷🇴 Romanian` `🇲🇾 Malay` and more
+
+---
+
+## 🏗️ Architecture
 
 ```
-User selects text → Right-click → Context Menu
-    → background.js captures selectionText
-        → Sends message to content.js
-            → Reads chrome.storage.sync (voice, rate, lang, autoDetect)
-                → Detects language (if autoDetect ON)
-                    → Chunks text into ≤200-word segments
-                        → Queues SpeechSynthesisUtterances
-                            → Plays sequentially via Web Speech API
-                                → Floating Player shows progress
+Right-click / Popup button
+        │
+        ▼
+  content.js (UI only)
+  ─ Shadow DOM floating player
+  ─ Language pill: 🇩🇪 Deutsch · Google★
+  ─ Relays control messages
+        │
+        ▼
+  background.js  ←── chrome.tts API
+  ─ Language detection (Google CLD3)
+  ─ Voice resolution (Natural > Google > default)
+  ─ Text chunking + playback queue
+  ─ State: play / pause / skip / rate
+  ─ Tab-independent: survives tab switching
 ```
 
-### Key Technologies
+**Key design decisions:**
+- `chrome.tts` runs in the **Service Worker** — audio is not tied to any tab's DOM
+- Shadow DOM player — **zero CSS conflicts** with host pages, works on CNN, elpais, and any CSP-restricted site
+- No bundler, no npm, no dependencies — pure Manifest V3 vanilla JS
 
-| Component | Technology |
-|-----------|-----------|
-| **TTS Engine** | `window.speechSynthesis` (Web Speech API) |
-| **Floating Player** | Shadow DOM (zero CSS conflict with host page) |
-| **Settings Storage** | `chrome.storage.sync` (synced across devices) |
-| **Language Detection** | Unicode character range analysis (no API) |
-| **Extension Manifest** | Manifest V3 |
+---
 
-### Voice Selection Logic
+## ⚙️ Settings
 
-1. **Auto-detect ON** (default): Detect language from text → if user's saved voice matches detected language, use it; otherwise auto-pick best Google Neural voice for detected language
-2. **Auto-detect OFF**: Always use exactly the voice the user selected in popup settings
-
-### Text Chunking
-
-Long texts are split at sentence boundaries (`.`, `!`, `?`, `。`, `！`, `？`) into chunks of max 200 words. This ensures smooth playback and allows skip-back/forward at the sentence level.
+| | |
+|---|---|
+| **Auto-detect Language** | On by default — uses Chrome's CLD3 engine |
+| **Manual Language / Voice** | Full dropdown with country flags + voice quality labels |
+| **Reading Speed** | 0.5× to 2× with live slider |
+| **Preview Voice** | Test any voice before using it |
+| **Quick Setup Guide** | Built-in collapsible guide to unlock Natural voices |
 
 ---
 
 ## 🔒 Privacy
 
-- ✅ **No external requests** — The extension never sends your text to any server
-- ✅ **No tracking** — No analytics, no telemetry
-- ✅ **Minimal permissions** — Only `contextMenus`, `storage`, `activeTab`, `scripting`
-- ✅ **Open source** — Full source code available here
+- ✅ No external requests — text never leaves your browser
+- ✅ No analytics or telemetry
+- ✅ Permissions: `contextMenus` `storage` `activeTab` `scripting` `tts`
+- ✅ Full source code — inspect everything
 
 ---
 
 ## 🛣️ Roadmap
 
-- [x] v1.0 — Core TTS with floating player and settings popup
-- [ ] v1.1 — OS-level voice pack install guide for unsupported languages
-- [ ] v1.2 — Keyboard shortcut to trigger reading
-- [ ] v1.5 — Highlight text as it's being read (word-level sync)
-- [ ] v2.0 — Optional premium voices via ElevenLabs / Google Cloud TTS API
-
----
-
-## 🤝 Contributing
-
-Pull requests are welcome! Please open an issue first to discuss what you'd like to change.
-
-1. Fork the repo
-2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Commit your changes: `git commit -m 'Add some feature'`
-4. Push to the branch: `git push origin feature/your-feature`
-5. Open a Pull Request
+- [x] v1.0 — Core TTS, floating player, settings
+- [x] v1.1 — `chrome.tts` migration, tab-independent audio
+- [x] v1.1 — Google CLD3 language detection, 33+ languages
+- [x] v1.1 — Compact player UI, CSP/SPA bug fixes
+- [ ] v1.2 — Keyboard shortcut
+- [ ] v1.3 — Word-level highlight sync
+- [ ] v2.0 — Optional cloud voices (ElevenLabs / Google Cloud TTS)
 
 ---
 
 ## 📄 License
 
-MIT License — free to use, modify, and distribute.
+MIT — free to use, modify, and distribute.
 
 ---
 
-## ⭐ Acknowledgements
-
-- Voices provided by Chrome's built-in Web Speech API (Google Neural TTS)
-- Extension built with Manifest V3, Shadow DOM, and vanilla JavaScript — no dependencies
-- UI design: Inter font, blue/white modern theme
-
----
-
-*Made with ❤️ for people who prefer to listen rather than read.*
+*Built with Manifest V3 · Shadow DOM · Vanilla JS · No dependencies*  
+*Made with ❤️ for people who prefer to listen.*
