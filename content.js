@@ -1,378 +1,64 @@
 // Chrome TTS — content.js
-// Full TTS engine using window.speechSynthesis + Shadow DOM Floating Player
-// Injected into all pages via manifest content_scripts
+// UI-only: Shadow DOM floating player.
+// All TTS speech handled by background.js via chrome.tts API.
 
 (function () {
   'use strict';
 
-  // Guard: prevent double-injection
   if (window.__chromeTTSLoaded) return;
   window.__chromeTTSLoaded = true;
 
-  // ═══════════════════════════════════════════════
-  // 1. STATE
-  // ═══════════════════════════════════════════════
-
-  let allVoices = [];
-  let isPlaying = false;
-  let isPaused = false;
+  // ── UI state (for button rendering only) ─────────────────────────────────
+  let isPlaying  = false;
+  let isPaused   = false;
   let currentSpeed = 1.0;
+  let playerHost = null;
+  let shadow     = null;
 
-  // ═══════════════════════════════════════════════
-  // 2. VOICE LOADING — speechSynthesis
-  // ═══════════════════════════════════════════════
-
-  function loadVoices() {
-    allVoices = window.speechSynthesis.getVoices();
-    // Log for debugging
-    console.log('[ChromeTTS] Voices loaded:', allVoices.length,
-      allVoices.filter(v => v.name.includes('Natural')).map(v => v.name));
-  }
-
-  // CRITICAL: voices load asynchronously. Must use onvoiceschanged.
-  loadVoices();
-  if (window.speechSynthesis.onvoiceschanged !== undefined) {
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-  }
-  // Also retry after delays (some Chrome versions are slow)
-  setTimeout(loadVoices, 500);
-  setTimeout(loadVoices, 2000);
-
-  // ═══════════════════════════════════════════════
-  // 3. LANGUAGE DETECTION
-  // ═══════════════════════════════════════════════
-
-  // ── Language code → display info (flag + short name) ──────────────────────
+  // ── Language display map ──────────────────────────────────────────────────
   const LANG_DISPLAY = {
-    'vi-VN': { flag: '\uD83C\uDDFB\uD83C\uDDF3', name: 'Tiếng Việt' },
-    'en-US': { flag: '\uD83C\uDDFA\uD83C\uDDF8', name: 'English (US)' },
-    'en-GB': { flag: '\uD83C\uDDEC\uD83C\uDDE7', name: 'English (UK)' },
-    'ja-JP': { flag: '\uD83C\uDDEF\uD83C\uDDF5', name: '日本語' },
-    'ko-KR': { flag: '\uD83C\uDDF0\uD83C\uDDF7', name: '한국어' },
-    'zh-CN': { flag: '\uD83C\uDDE8\uD83C\uDDF3', name: '中文(简)' },
-    'zh-TW': { flag: '\uD83C\uDDF9\uD83C\uDDFC', name: '中文(繁)' },
-    'th-TH': { flag: '\uD83C\uDDF9\uD83C\uDDED', name: 'ภาษาไทย' },
-    'ar-SA': { flag: '\uD83C\uDDF8\uD83C\uDDE6', name: 'العربية' },
-    'ru-RU': { flag: '\uD83C\uDDF7\uD83C\uDDFA', name: 'Русский' },
-    'hi-IN': { flag: '\uD83C\uDDEE\uD83C\uDDF3', name: 'हिन्दी' },
-    'es-ES': { flag: '\uD83C\uDDEA\uD83C\uDDF8', name: 'Español' },
-    'es-MX': { flag: '\uD83C\uDDF2\uD83C\uDDFD', name: 'Español (MX)' },
-    'de-DE': { flag: '\uD83C\uDDE9\uD83C\uDDEA', name: 'Deutsch' },
-    'fr-FR': { flag: '\uD83C\uDDEB\uD83C\uDDF7', name: 'Français' },
-    'it-IT': { flag: '\uD83C\uDDEE\uD83C\uDDF9', name: 'Italiano' },
-    'pt-BR': { flag: '\uD83C\uDDE7\uD83C\uDDF7', name: 'Português (BR)' },
-    'pt-PT': { flag: '\uD83C\uDDF5\uD83C\uDDF9', name: 'Português (PT)' },
-    'nl-NL': { flag: '\uD83C\uDDF3\uD83C\uDDF1', name: 'Nederlands' },
-    'pl-PL': { flag: '\uD83C\uDDF5\uD83C\uDDF1', name: 'Polski' },
-    'tr-TR': { flag: '\uD83C\uDDF9\uD83C\uDDF7', name: 'Türkçe' },
-    'id-ID': { flag: '\uD83C\uDDEE\uD83C\uDDE9', name: 'Indonesia' },
+    'vi-VN': { flag: '🇻🇳', name: 'Tiếng Việt' },
+    'en-US': { flag: '🇺🇸', name: 'English (US)' },
+    'en-GB': { flag: '🇬🇧', name: 'English (UK)' },
+    'ja-JP': { flag: '🇯🇵', name: '日本語' },
+    'ko-KR': { flag: '🇰🇷', name: '한국어' },
+    'zh-CN': { flag: '🇨🇳', name: '中文(简)' },
+    'zh-TW': { flag: '🇹🇼', name: '中文(繁)' },
+    'th-TH': { flag: '🇹🇭', name: 'ภาษาไทย' },
+    'ar-SA': { flag: '🇸🇦', name: 'العربية' },
+    'ru-RU': { flag: '🇷🇺', name: 'Русский' },
+    'hi-IN': { flag: '🇮🇳', name: 'हिन्दी' },
+    'es-ES': { flag: '🇪🇸', name: 'Español' },
+    'es-MX': { flag: '🇲🇽', name: 'Español (MX)' },
+    'de-DE': { flag: '🇩🇪', name: 'Deutsch' },
+    'fr-FR': { flag: '🇫🇷', name: 'Français' },
+    'it-IT': { flag: '🇮🇹', name: 'Italiano' },
+    'pt-BR': { flag: '🇧🇷', name: 'Português (BR)' },
+    'pt-PT': { flag: '🇵🇹', name: 'Português (PT)' },
+    'nl-NL': { flag: '🇳🇱', name: 'Nederlands' },
+    'pl-PL': { flag: '🇵🇱', name: 'Polski' },
+    'tr-TR': { flag: '🇹🇷', name: 'Türkçe' },
+    'id-ID': { flag: '🇮🇩', name: 'Indonesia' },
+    'cs-CZ': { flag: '🇨🇿', name: 'Čeština' },
+    'hu-HU': { flag: '🇭🇺', name: 'Magyar' },
+    'sv-SE': { flag: '🇸🇪', name: 'Svenska' },
+    'fi-FI': { flag: '🇫🇮', name: 'Suomi' },
+    'da-DK': { flag: '🇩🇰', name: 'Dansk' },
+    'el-GR': { flag: '🇬🇷', name: 'Ελληνικά' },
+    'uk-UA': { flag: '🇺🇦', name: 'Українська' },
+    'nb-NO': { flag: '🇳🇴', name: 'Norsk' },
+    'sk-SK': { flag: '🇸🇰', name: 'Slovenčina' },
+    'ro-RO': { flag: '🇷🇴', name: 'Română' },
+    'ms-MY': { flag: '🇲🇾', name: 'Melayu' },
+    'he-IL': { flag: '🇮🇱', name: 'עברית' },
   };
 
   function getLangDisplay(langCode) {
     if (!langCode) return null;
-    return LANG_DISPLAY[langCode] || LANG_DISPLAY[langCode.split('-')[0] + '-' + langCode.split('-')[0].toUpperCase()]
-           || { flag: '\uD83C\uDF10', name: langCode };
+    return LANG_DISPLAY[langCode] || { flag: '🌐', name: langCode };
   }
 
-  // ── BCP-47 map: 2-letter CLD code → full locale code ─────────────────────
-  const CLD_TO_BCP47 = {
-    'vi': 'vi-VN', 'ja': 'ja-JP', 'ko': 'ko-KR', 'zh': 'zh-CN',
-    'th': 'th-TH', 'ar': 'ar-SA', 'ru': 'ru-RU', 'hi': 'hi-IN',
-    'de': 'de-DE', 'es': 'es-ES', 'fr': 'fr-FR', 'it': 'it-IT',
-    'pt': 'pt-BR', 'nl': 'nl-NL', 'pl': 'pl-PL', 'tr': 'tr-TR',
-    'id': 'id-ID', 'cs': 'cs-CZ', 'hu': 'hu-HU', 'sv': 'sv-SE',
-    'fi': 'fi-FI', 'da': 'da-DK', 'nb': 'nb-NO', 'no': 'nb-NO',
-    'el': 'el-GR', 'uk': 'uk-UA', 'fil': 'fil-PH', 'sk': 'sk-SK',
-    'ro': 'ro-RO', 'ms': 'ms-MY', 'bn': 'bn-BD', 'he': 'he-IL',
-    'en': 'en-US',
-  };
-
-  // ── Language detection: chrome.i18n.detectLanguage (Google CLD3) ────────────
-  async function detectLang(text) {
-    try {
-      const sample = text.slice(0, 500);
-      const result = await new Promise(resolve =>
-        chrome.i18n.detectLanguage(sample, resolve)
-      );
-      if (result && result.languages.length > 0) {
-        const top = result.languages[0];
-        // Chấp nhận kết quả khi percentage >= 30%
-        // (isReliable thường = false với text ngắn dù CLD3 đã biết đúng)
-        if (top.percentage >= 30) {
-          const bcp47 = CLD_TO_BCP47[top.language];
-          return bcp47 || top.language;
-        }
-      }
-    } catch (e) {
-      // fallback
-    }
-    return 'en-US';
-  }
-
-  // ═══════════════════════════════════════════════
-  // 4. VOICE RESOLUTION — Prefer Natural > Google > Others
-  // ═══════════════════════════════════════════════
-
-  function getPreferredVoice(langCode) {
-    if (!langCode || langCode === 'auto') return null;
-    const prefix = langCode.toLowerCase().replace('_', '-');
-    const basePrefix = prefix.split('-')[0];
-
-    // Find all matching voices for this language
-    const matching = allVoices.filter(v => {
-      const vl = (v.lang || '').toLowerCase().replace('_', '-');
-      return vl === prefix || vl.startsWith(prefix + '-') ||
-             vl === basePrefix || vl.startsWith(basePrefix + '-');
-    });
-    if (matching.length === 0) return null;
-
-    // Priority: Natural voices first, then Google, then others
-    const natural = matching.filter(v => v.name.includes('Natural'));
-    if (natural.length > 0) return natural[0];
-
-    const google = matching.filter(v => v.name.toLowerCase().includes('google'));
-    if (google.length > 0) return google[0];
-
-    return matching[0];
-  }
-
-  // ═══════════════════════════════════════════════
-  // 5. TEXT CHUNKING
-  // ═══════════════════════════════════════════════
-
-  function chunkText(text, maxWords = 150) {
-    const sentences = text.split(/(?<=[.!?。！？])\s+/);
-    const chunks = [];
-    let current = '';
-    let wordCount = 0;
-    for (const sentence of sentences) {
-      const words = sentence.split(/\s+/).length;
-      if (wordCount + words > maxWords && current.trim()) {
-        chunks.push(current.trim());
-        current = sentence + ' ';
-        wordCount = words;
-      } else {
-        current += sentence + ' ';
-        wordCount += words;
-      }
-    }
-    if (current.trim()) chunks.push(current.trim());
-    return chunks.length > 0 ? chunks : [text];
-  }
-
-  // ═══════════════════════════════════════════════
-  // 6. TTS CONTROLLER — using window.speechSynthesis
-  // ═══════════════════════════════════════════════
-
-  const TTS = {
-    queue: [],
-    currentIndex: 0,
-    utterance: null,
-
-    _cancelCurrent() {
-      if (this.utterance) {
-        this.utterance.onend = null;
-        this.utterance.onerror = null;
-      }
-      window.speechSynthesis.cancel();
-    },
-
-    async start(text) {
-      this.stop();
-      if (!text || text.trim().length < 3) return;
-
-      // Ensure voices are loaded
-      if (allVoices.length === 0) {
-        loadVoices();
-        // Wait up to 3s for voices to load
-        await new Promise(resolve => {
-          let attempts = 0;
-          const check = () => {
-            loadVoices();
-            if (allVoices.length > 0 || attempts++ > 30) resolve();
-            else setTimeout(check, 100);
-          };
-          check();
-        });
-      }
-
-      // Load settings
-      const settings = await new Promise(r => {
-        chrome.storage.sync.get(['voiceName', 'lang', 'rate', 'autoDetect'], r);
-      });
-
-      const rate = parseFloat(settings.rate) || 1.0;
-      currentSpeed = rate;
-      const autoDetect = settings.autoDetect !== false;
-      const savedVoiceName = settings.voiceName || null;
-
-      // Resolve voice
-      let voice = null;
-      let lang = null;
-
-      if (autoDetect) {
-        const detectedLang = await detectLang(text);
-        lang = detectedLang;
-
-        // If saved voice matches detected language, use it
-        if (savedVoiceName) {
-          const savedVoice = allVoices.find(v => v.name === savedVoiceName);
-          if (savedVoice) {
-            const savedBase = savedVoice.lang.toLowerCase().split('-')[0];
-            const detectedBase = detectedLang.toLowerCase().split('-')[0];
-            if (savedBase === detectedBase) {
-              voice = savedVoice;
-            }
-          }
-        }
-
-        if (!voice) {
-          voice = getPreferredVoice(detectedLang);
-        }
-      } else {
-        // Manual mode
-        if (savedVoiceName) {
-          voice = allVoices.find(v => v.name === savedVoiceName);
-        }
-        if (!voice && settings.lang && settings.lang !== 'auto') {
-          voice = getPreferredVoice(settings.lang);
-        }
-        lang = settings.lang || 'en-US';
-      }
-
-      // Chunk text
-      this.queue = chunkText(text);
-      this.currentIndex = 0;
-      isPlaying = true;
-      isPaused = false;
-
-      // Store resolved voice + rate for playback
-      this._voice = voice;
-      this._rate = rate;
-      this._lang = lang;
-
-      // Show player with detected language info
-      showPlayer(text, lang, voice ? voice.name : null);
-      setActiveSpeed(rate);
-
-      // Start playback
-      this.playNextChunk();
-    },
-
-    playNextChunk() {
-      if (!isPlaying) return;
-      if (this.currentIndex >= this.queue.length) {
-        isPlaying = false;
-        isPaused = false;
-        setStatus('Done ✓');
-        setProgress(1, 1);
-        const icon = shadow && shadow.getElementById('tts-icon');
-        if (icon) { icon.classList.remove('pulse'); icon.textContent = '✓'; }
-        setTimeout(() => {
-          hidePlayer();
-          const icon2 = shadow && shadow.getElementById('tts-icon');
-          if (icon2) icon2.textContent = '🔊';
-        }, 2200);
-        return;
-      }
-
-      const chunk = this.queue[this.currentIndex];
-      const total = this.queue.length;
-      const current = this.currentIndex;
-
-      // Update UI
-      setProgress(current, total);
-      setStatus(`Reading ${current + 1} / ${total}`);
-
-      // Create utterance
-      const utterance = new SpeechSynthesisUtterance(chunk);
-      if (this._voice) utterance.voice = this._voice;
-      if (this._lang) utterance.lang = this._lang;
-      utterance.rate = this._rate || 1.0;
-
-      utterance.onend = () => {
-        this.currentIndex++;
-        this.playNextChunk();
-      };
-
-      utterance.onerror = (e) => {
-        console.warn('[ChromeTTS] Utterance error:', e);
-        this.currentIndex++;
-        this.playNextChunk();
-      };
-
-      this._cancelCurrent();
-      this.utterance = utterance;
-      window.speechSynthesis.speak(utterance);
-    },
-
-    pause() {
-      if (isPlaying && !isPaused) {
-        window.speechSynthesis.pause();
-        isPaused = true;
-        setPauseIcon(true);
-        setStatus('Paused');
-        const icon = shadow && shadow.getElementById('tts-icon');
-        if (icon) icon.classList.remove('pulse');
-      }
-    },
-
-    resume() {
-      if (isPaused) {
-        window.speechSynthesis.resume();
-        isPaused = false;
-        setPauseIcon(false);
-        setStatus('Reading...');
-        const icon = shadow && shadow.getElementById('tts-icon');
-        if (icon) icon.classList.add('pulse');
-      }
-    },
-
-    stop() {
-      this._cancelCurrent();
-      isPlaying = false;
-      isPaused = false;
-      this.queue = [];
-      this.currentIndex = 0;
-      this.utterance = null;
-    },
-
-    setRate(rate) {
-      this._rate = parseFloat(rate) || 1.0;
-      currentSpeed = this._rate;
-      if (isPlaying && !isPaused && this.queue.length > 0) {
-        // Restart current chunk with new rate
-        this._cancelCurrent();
-        setTimeout(() => {
-          if (isPlaying) this.playNextChunk();
-        }, 80);
-      }
-    },
-
-    skipBack() {
-      this.currentIndex = Math.max(0, this.currentIndex - 1);
-      this._cancelCurrent();
-      isPaused = false;
-      setPauseIcon(false);
-      if (isPlaying) this.playNextChunk();
-    },
-
-    skipForward() {
-      this.currentIndex = Math.min(this.currentIndex + 1, this.queue.length - 1);
-      this._cancelCurrent();
-      isPaused = false;
-      setPauseIcon(false);
-      if (isPlaying) this.playNextChunk();
-    }
-  };
-
-  // ═══════════════════════════════════════════════
-  // 7. FLOATING PLAYER — SHADOW DOM
-  // ═══════════════════════════════════════════════
-
-  let playerHost = null;
-  let shadow = null;
-
+  // ── Player CSS ─────────────────────────────────────────────────────────────
   const PLAYER_CSS = `
     :host {
       all: initial;
@@ -585,6 +271,7 @@
     .lang-pill-flag { font-size: 11px; line-height: 1; }
   `;
 
+  // ── Player HTML ────────────────────────────────────────────────────────────
   function buildPlayerHTML() {
     return `
       <div class="player" id="tts-player">
@@ -624,21 +311,13 @@
     `;
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // PLAYER UI FUNCTIONS
-  // ─────────────────────────────────────────────────────────────────────────────
-
+  // ── Player DOM ─────────────────────────────────────────────────────────────
   function createPlayer() {
-    // Kiểm tra playerHost còn gắn vào DOM không (SPA navigation detaches it)
     const mountTarget = document.body || document.documentElement;
     if (playerHost) {
-      if (!mountTarget.contains(playerHost)) {
-        // playerHost bị detach (SPA navigate) — re-attach
-        mountTarget.appendChild(playerHost);
-      }
+      if (!mountTarget.contains(playerHost)) mountTarget.appendChild(playerHost);
       return;
     }
-
     playerHost = document.createElement('div');
     playerHost.id = 'chrome-tts-host';
     shadow = playerHost.attachShadow({ mode: 'open' });
@@ -651,23 +330,20 @@
     wrapper.innerHTML = buildPlayerHTML();
     shadow.appendChild(wrapper.firstElementChild);
 
-    // Fallback: dùng documentElement nếu body chưa sẵn sàng
-    try {
-      mountTarget.appendChild(playerHost);
-    } catch (e) {
-      console.warn('[ChromeTTS] Could not mount player:', e);
+    try { mountTarget.appendChild(playerHost); } catch (e) {
+      console.warn('[ChromeTTS] Mount failed:', e);
       return;
     }
     setupPlayerEvents();
   }
 
-  function showPlayer(text, langCode, voiceName) {
+  function showPlayer(langCode, voiceName) {
     createPlayer();
 
-    // Restore last saved position
+    // Restore saved position
     try {
       const pos = JSON.parse(localStorage.getItem('__chromeTTSPos') || 'null');
-      if (pos && pos.left !== undefined && pos.top !== undefined) {
+      if (pos && pos.left !== undefined) {
         playerHost.style.left   = pos.left;
         playerHost.style.top    = pos.top;
         playerHost.style.right  = 'auto';
@@ -683,17 +359,16 @@
       playerHost.style.bottom = '24px';
     }
 
-    // Update preview text (no longer shown, skip)
-
-    // Show language pill
-    const pill     = shadow.getElementById('tts-lang-pill');
-    const flagEl   = shadow.getElementById('tts-lang-flag');
-    const nameEl   = shadow.getElementById('tts-lang-name');
+    // Language pill
+    const pill   = shadow.getElementById('tts-lang-pill');
+    const flagEl = shadow.getElementById('tts-lang-flag');
+    const nameEl = shadow.getElementById('tts-lang-name');
     if (pill && langCode) {
       const info = getLangDisplay(langCode);
       flagEl.textContent = info.flag;
-      // Show: flag + lang name + voice short name if available
-      const voiceShort = voiceName ? ' · ' + voiceName.replace('Google ', '').replace(' Natural', '★').slice(0, 28) : '';
+      const voiceShort = voiceName
+        ? ' · ' + voiceName.replace('Google ', '').replace(' Natural', '★').slice(0, 24)
+        : '';
       nameEl.textContent = info.name + voiceShort;
       pill.style.display = 'inline-flex';
     } else if (pill) {
@@ -707,7 +382,7 @@
     setPauseIcon(false);
 
     const icon = shadow.getElementById('tts-icon');
-    if (icon) icon.classList.add('pulse');
+    if (icon) { icon.classList.add('pulse'); icon.textContent = '🔊'; }
   }
 
   function hidePlayer() {
@@ -736,38 +411,33 @@
   function setActiveSpeed(speed) {
     const btns = shadow && shadow.querySelectorAll('.speed-btn');
     if (!btns) return;
-    btns.forEach(b => {
-      b.classList.toggle('active', parseFloat(b.dataset.speed) === speed);
-    });
+    btns.forEach(b => b.classList.toggle('active', parseFloat(b.dataset.speed) === speed));
   }
 
-  // ═══════════════════════════════════════════════
-  // 8. PLAYER EVENTS
-  // ═══════════════════════════════════════════════
-
+  // ── Player Events → send to background ────────────────────────────────────
   function setupPlayerEvents() {
     // Close
     shadow.getElementById('tts-close').addEventListener('click', () => {
-      TTS.stop();
-      isPlaying = false;
-      isPaused = false;
+      chrome.runtime.sendMessage({ action: 'stop' });
       hidePlayer();
+      isPlaying = false;
+      isPaused  = false;
     });
 
-    // Play/Pause toggle
+    // Play / Pause
     shadow.getElementById('tts-playpause').addEventListener('click', () => {
-      if (isPaused) TTS.resume();
-      else TTS.pause();
+      if (isPaused) chrome.runtime.sendMessage({ action: 'resume' });
+      else          chrome.runtime.sendMessage({ action: 'pause' });
     });
 
     // Skip back
     shadow.getElementById('tts-skipback').addEventListener('click', () => {
-      TTS.skipBack();
+      chrome.runtime.sendMessage({ action: 'skipBack' });
     });
 
     // Skip forward
     shadow.getElementById('tts-skipfwd').addEventListener('click', () => {
-      TTS.skipForward();
+      chrome.runtime.sendMessage({ action: 'skipForward' });
     });
 
     // Speed buttons
@@ -775,15 +445,13 @@
       const btn = e.target.closest('.speed-btn');
       if (!btn) return;
       const speed = parseFloat(btn.dataset.speed);
-      TTS.setRate(speed);
+      currentSpeed = speed;
       setActiveSpeed(speed);
+      chrome.runtime.sendMessage({ action: 'setRate', rate: speed });
     });
 
-    // ── Dragging ──────────────────────────────────────────────────────────────
-    let isDragging = false;
-    let dragOffX = 0;
-    let dragOffY = 0;
-
+    // ── Drag ──────────────────────────────────────────────────────────────
+    let isDragging = false, dragOffX = 0, dragOffY = 0;
     const header = shadow.getElementById('tts-header');
 
     header.addEventListener('mousedown', e => {
@@ -796,7 +464,7 @@
 
     document.addEventListener('mousemove', e => {
       if (!isDragging) return;
-      const x = Math.max(0, Math.min(e.clientX - dragOffX, window.innerWidth - playerHost.offsetWidth));
+      const x = Math.max(0, Math.min(e.clientX - dragOffX, window.innerWidth  - playerHost.offsetWidth));
       const y = Math.max(0, Math.min(e.clientY - dragOffY, window.innerHeight - playerHost.offsetHeight));
       playerHost.style.left   = x + 'px';
       playerHost.style.top    = y + 'px';
@@ -807,7 +475,6 @@
     document.addEventListener('mouseup', () => {
       if (!isDragging) return;
       isDragging = false;
-      // Save position
       try {
         localStorage.setItem('__chromeTTSPos', JSON.stringify({
           left: playerHost.style.left,
@@ -817,15 +484,65 @@
     });
   }
 
-  // ═══════════════════════════════════════════════
-  // 9. MESSAGE LISTENER
-  // ═══════════════════════════════════════════════
-
+  // ── Message listener (from background + popup) ────────────────────────────
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     switch (msg.action) {
+
+      // ── Relay: popup or another content script triggered speak ────────────
       case 'speak':
-        TTS.start(msg.text);
+        chrome.runtime.sendMessage({ action: 'startTTS', text: msg.text });
         break;
+
+      // ── Background → UI state updates ─────────────────────────────────────
+      case 'ttsStarted':
+        isPlaying = true;
+        isPaused  = false;
+        showPlayer(msg.lang, msg.voiceName);
+        setStatus(`Reading 1 / ${msg.total}`);
+        setProgress(0, msg.total);
+        break;
+
+      case 'ttsProgress':
+        setStatus(`Reading ${msg.current + 1} / ${msg.total}`);
+        setProgress(msg.current, msg.total);
+        break;
+
+      case 'ttsPaused':
+        isPaused = true;
+        setPauseIcon(true);
+        setStatus('Paused');
+        const iconP = shadow && shadow.getElementById('tts-icon');
+        if (iconP) iconP.classList.remove('pulse');
+        break;
+
+      case 'ttsResumed':
+        isPaused = false;
+        setPauseIcon(false);
+        setStatus('Reading...');
+        const iconR = shadow && shadow.getElementById('tts-icon');
+        if (iconR) iconR.classList.add('pulse');
+        break;
+
+      case 'ttsDone':
+        isPlaying = false;
+        isPaused  = false;
+        setStatus('Done ✓');
+        setProgress(1, 1);
+        const iconD = shadow && shadow.getElementById('tts-icon');
+        if (iconD) { iconD.classList.remove('pulse'); iconD.textContent = '✓'; }
+        setTimeout(() => {
+          hidePlayer();
+          const icon2 = shadow && shadow.getElementById('tts-icon');
+          if (icon2) icon2.textContent = '🔊';
+        }, 2200);
+        break;
+
+      case 'ttsStopped':
+        isPlaying = false;
+        isPaused  = false;
+        hidePlayer();
+        break;
+
       case 'ping':
         sendResponse({ status: 'ok' });
         break;
