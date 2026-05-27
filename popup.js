@@ -969,7 +969,65 @@ function setupEvents() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// QUICK SETUP BANNER — Expand / Collapse
+// ─────────────────────────────────────────────────────────────────────────────
+
+const qsWrap    = document.getElementById('quick-setup-wrap');
+const qsBar     = document.getElementById('qs-bar');
+const qsBadge   = document.getElementById('qs-badge');
+const qsDoneBtn = document.getElementById('btn-qs-done');
+const qsGifWrap = document.getElementById('qs-gif-wrap');
+
+/**
+ * Initialise the Quick Setup banner.
+ *  - Always visible (never hidden).
+ *  - Starts expanded on first run; collapsed on subsequent opens.
+ *  - If user previously clicked "Done", bar shows green ✅ badge.
+ */
+function initQuickSetup() {
+  chrome.storage.sync.get(['qsState'], ({ qsState }) => {
+    if (qsState === 'done') {
+      // Completed — show collapsed with green badge
+      qsWrap.classList.remove('qs-open');
+      qsWrap.classList.add('qs-done');
+      qsBadge.textContent = 'Completed ✅';
+    } else {
+      // First run or not done yet — start expanded
+      qsWrap.classList.add('qs-open');
+      qsWrap.classList.remove('qs-done');
+      qsBadge.textContent = 'One-time';
+    }
+  });
+}
+
+// Toggle expand / collapse on bar click
+qsBar.addEventListener('click', () => {
+  qsWrap.classList.toggle('qs-open');
+});
+
+// "Done! Reading Mode Pinned" — collapse + mark complete
+qsDoneBtn.addEventListener('click', () => {
+  chrome.storage.sync.set({ qsState: 'done' });
+  qsWrap.classList.remove('qs-open');
+  qsWrap.classList.add('qs-done');
+  qsBadge.textContent = 'Completed ✅';
+});
+
+// GIF — click to open full size in new tab
+if (qsGifWrap) {
+  qsGifWrap.addEventListener('click', (e) => {
+    e.stopPropagation(); // don't collapse bar
+    chrome.tabs.create({ url: chrome.runtime.getURL('quicksetup.gif') });
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // BOOT
 // ─────────────────────────────────────────────────────────────────────────────
 
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', () => {
+  init();
+  initQuickSetup();
+});
+
+

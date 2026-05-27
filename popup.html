@@ -696,6 +696,198 @@
     .guide-gif-container:hover .guide-gif-overlay {
       opacity: 1;
     }
+
+    /* ── Quick Setup Banner ────────────────────────────────────────────── */
+    .quick-setup-wrap {
+      background: linear-gradient(160deg, #0F172A 0%, #1E3A6E 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .quick-setup-wrap::before {
+      content: '';
+      position: absolute;
+      width: 200px; height: 200px;
+      background: radial-gradient(circle, rgba(30,111,255,0.18) 0%, transparent 70%);
+      top: -60px; right: -40px;
+      pointer-events: none;
+    }
+
+    /* Bar: always visible, clickable */
+    .qs-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 14px;
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+      z-index: 1;
+    }
+
+    .qs-bar-left {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .qs-bar-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: 0.1px;
+    }
+
+    .qs-badge {
+      font-size: 9px;
+      font-weight: 700;
+      background: rgba(245,158,11,0.25);
+      color: #FCD34D;
+      padding: 2px 8px;
+      border-radius: 20px;
+      border: 1px solid rgba(252,211,77,0.3);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .qs-chevron {
+      color: rgba(255,255,255,0.45);
+      font-size: 10px;
+      transition: transform 0.25s ease;
+      flex-shrink: 0;
+    }
+
+    /* Subtitle: ALWAYS visible, below the bar */
+    .qs-always-subtitle {
+      padding: 0 14px 9px;
+      font-size: 10.5px;
+      color: rgba(255,255,255,0.7);
+      line-height: 1.5;
+      position: relative;
+      z-index: 1;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+    .qs-always-subtitle strong { color: #FCD34D; font-weight: 600; }
+
+    /* Expandable body */
+    .qs-body {
+      position: relative;
+      z-index: 1;
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height 0.35s cubic-bezier(0.4,0,0.2,1);
+    }
+    .quick-setup-wrap.qs-open .qs-body {
+      max-height: 700px;
+    }
+    .quick-setup-wrap.qs-open .qs-chevron {
+      transform: rotate(180deg);
+    }
+
+    /* Steps as clean rows */
+    .qs-steps {
+      padding: 10px 14px 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .qs-step {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .qs-step-num {
+      width: 20px; height: 20px;
+      background: rgba(30,111,255,0.5);
+      border: 1px solid rgba(30,111,255,0.7);
+      border-radius: 50%;
+      font-size: 10px;
+      font-weight: 700;
+      color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .qs-step-icon {
+      font-size: 15px;
+      line-height: 1;
+      flex-shrink: 0;
+      width: 22px;
+      text-align: center;
+    }
+
+    .qs-step-text {
+      font-size: 11px;
+      color: rgba(255,255,255,0.82);
+      line-height: 1.4;
+      font-weight: 500;
+    }
+
+    .qs-step-text em {
+      font-style: normal;
+      color: #fff;
+      font-weight: 600;
+    }
+
+    /* GIF preview */
+    .qs-gif-wrap {
+      position: relative;
+      border-radius: 8px;
+      overflow: hidden;
+      margin: 10px 14px 0;
+      cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .qs-gif {
+      width: 100%;
+      display: block;
+      border-radius: 7px;
+    }
+
+    .qs-gif-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .qs-gif-wrap:hover .qs-gif-overlay { opacity: 1; }
+
+    /* Done button */
+    .btn-qs-done {
+      display: block;
+      width: calc(100% - 28px);
+      margin: 10px 14px 12px;
+      padding: 8px 12px;
+      background: linear-gradient(135deg, #10B981 0%, #34D399 100%);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-family: 'Inter', sans-serif;
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 3px 10px rgba(16,185,129,0.3);
+    }
+    .btn-qs-done:hover { transform: translateY(-1px); box-shadow: 0 5px 14px rgba(16,185,129,0.4); }
+    .btn-qs-done:active { transform: translateY(0); }
+
+    /* Done state: badge turns green */
+    .quick-setup-wrap.qs-done .qs-badge {
+      background: rgba(16,185,129,0.2);
+      color: #34D399;
+      border-color: rgba(52,211,153,0.35);
+    }
   </style>
 </head>
 <body>
@@ -708,6 +900,63 @@
         <h1>Chrome TTS</h1>
         <p>Natural voice text reader</p>
       </div>
+    </div>
+  </div>
+
+  <!-- Quick Setup Banner (always visible, collapsible) -->
+  <div class="quick-setup-wrap" id="quick-setup-wrap">
+
+    <!-- Bar: always visible, click to expand/collapse -->
+    <div class="qs-bar" id="qs-bar">
+      <div class="qs-bar-left">
+        <span class="qs-bar-label">Quick Setup</span>
+        <span class="qs-badge" id="qs-badge">ONE-TIME</span>
+      </div>
+      <span class="qs-chevron" id="qs-chevron">▾</span>
+    </div>
+
+    <!-- Subtitle: ALWAYS visible below the bar -->
+    <div class="qs-always-subtitle">
+      Pin <strong>Reading Mode</strong> to your toolbar — then just <strong>1 click</strong> each time Chrome starts to load Natural voices instantly.
+    </div>
+
+    <!-- Expandable body -->
+    <div class="qs-body" id="qs-body">
+
+      <!-- 4 Steps as rows -->
+      <div class="qs-steps">
+        <div class="qs-step">
+          <div class="qs-step-num">1</div>
+          <span class="qs-step-icon">…</span>
+          <div class="qs-step-text">Click the <em>3-dot menu</em> — top right of Chrome</div>
+        </div>
+        <div class="qs-step">
+          <div class="qs-step-num">2</div>
+          <span class="qs-step-icon">🖥️</span>
+          <div class="qs-step-text"><em>More Tools</em> → <em>Customize Chrome</em></div>
+        </div>
+        <div class="qs-step">
+          <div class="qs-step-num">3</div>
+          <span class="qs-step-icon">🔧</span>
+          <div class="qs-step-text">Select <em>Toolbar</em> from the left panel</div>
+        </div>
+        <div class="qs-step">
+          <div class="qs-step-num">4</div>
+          <span class="qs-step-icon">📖</span>
+          <div class="qs-step-text">Toggle <em>Reading Mode</em> ON</div>
+        </div>
+      </div>
+
+      <!-- GIF preview -->
+      <div class="qs-gif-wrap" id="qs-gif-wrap" title="Click to view full size">
+        <img src="quicksetup.gif" alt="Quick Setup Guide" class="qs-gif"
+             onerror="this.parentElement.style.display='none'" />
+        <div class="qs-gif-overlay">View full guide</div>
+      </div>
+
+      <!-- Done button -->
+      <button class="btn-qs-done" id="btn-qs-done">Done — Reading Mode is pinned</button>
+
     </div>
   </div>
 
