@@ -32,6 +32,45 @@
       font-size: 13px;
     }
 
+    /* ── Lang Toggle Button ─────────────────────────────────────── */
+    .lang-toggle {
+      position: absolute;
+      top: 10px;
+      right: 14px;
+      display: flex;
+      align-items: center;
+      gap: 0;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.22);
+      border-radius: 20px;
+      overflow: hidden;
+      z-index: 10;
+    }
+    .lang-btn {
+      padding: 4px 9px;
+      font-family: 'Inter', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.55);
+      background: none;
+      border: none;
+      cursor: pointer;
+      letter-spacing: 0.4px;
+      transition: color 0.18s, background 0.18s;
+      line-height: 1.4;
+    }
+    .lang-btn.active {
+      background: rgba(255,255,255,0.22);
+      color: #fff;
+      border-radius: 20px;
+    }
+    .lang-divider {
+      width: 1px;
+      height: 12px;
+      background: rgba(255,255,255,0.2);
+      flex-shrink: 0;
+    }
+
     /* ── Header ─────────────────────────────────────────────────────────── */
     .header {
       background: var(--gradient);
@@ -697,7 +736,139 @@
       opacity: 1;
     }
 
+    /* ── Quick Access Banner (always pinned at top) ──────────────────────── */
+    .quick-access-wrap {
+      background: linear-gradient(160deg, #0F172A 0%, #1A2E5A 100%);
+      position: relative;
+      overflow: hidden;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .quick-access-wrap::before {
+      content: '';
+      position: absolute;
+      width: 180px; height: 180px;
+      background: radial-gradient(circle, rgba(91,159,255,0.15) 0%, transparent 70%);
+      top: -50px; right: -30px;
+      pointer-events: none;
+    }
+
+    /* Bar row: label + badge + toggle button */
+    .qa-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 14px 0;
+      position: relative;
+      z-index: 1;
+    }
+
+    .qa-title-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .qa-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: 0.1px;
+    }
+
+    .qa-badge {
+      font-size: 9px;
+      font-weight: 700;
+      background: rgba(30,111,255,0.3);
+      color: #93C5FD;
+      padding: 2px 8px;
+      border-radius: 20px;
+      border: 1px solid rgba(147,197,253,0.3);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Toggle GIF button */
+    .qa-toggle-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 20px;
+      padding: 3px 9px 3px 7px;
+      color: rgba(255,255,255,0.75);
+      font-family: 'Inter', sans-serif;
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+    .qa-toggle-btn:hover { background: rgba(255,255,255,0.18); }
+    .qa-toggle-chevron {
+      font-size: 9px;
+      transition: transform 0.28s ease;
+      display: inline-block;
+    }
+    .quick-access-wrap.qa-open .qa-toggle-chevron {
+      transform: rotate(180deg);
+    }
+
+    .qa-subtitle {
+      padding: 4px 14px 8px;
+      font-size: 10.5px;
+      color: rgba(255,255,255,0.65);
+      line-height: 1.5;
+      position: relative;
+      z-index: 1;
+    }
+    .qa-subtitle strong { color: #93C5FD; font-weight: 600; }
+
+    /* Collapsible GIF section */
+    .qa-gif-body {
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height 0.35s cubic-bezier(0.4,0,0.2,1);
+      position: relative;
+      z-index: 1;
+    }
+    .quick-access-wrap.qa-open .qa-gif-body {
+      max-height: 400px;
+    }
+
+    .qa-gif-wrap {
+      position: relative;
+      border-radius: 8px;
+      overflow: hidden;
+      margin: 0 14px 10px;
+      cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .qa-gif {
+      width: 100%;
+      display: block;
+      border-radius: 7px;
+    }
+
+    .qa-gif-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .qa-gif-wrap:hover .qa-gif-overlay { opacity: 1; }
+
     /* ── Quick Setup Banner ────────────────────────────────────────────── */
+    /* Full banner (shown only before Done) */
     .quick-setup-wrap {
       background: linear-gradient(160deg, #0F172A 0%, #1E3A6E 100%);
       position: relative;
@@ -888,6 +1059,118 @@
       color: #34D399;
       border-color: rgba(52,211,153,0.35);
     }
+
+    /* ── Quick Setup Hint (shown after Done, like natural-voice-hint) ─────── */
+    .qs-hint {
+      margin-top: 0;
+      font-size: 11px;
+      color: #4a5e8a;
+      background: #EBF1FF;
+      padding: 7px 10px;
+      border-radius: 0;
+      border-top: 1px solid #D0DCFF;
+      display: none;
+      align-items: center;
+      gap: 0;
+      line-height: 1.4;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s;
+    }
+    .qs-hint:hover {
+      background: #dce8ff;
+    }
+    .qs-hint a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .qs-hint a:hover { text-decoration: underline; }
+
+    /* The collapsed modal for QS review */
+    .qs-review-modal-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      backdrop-filter: blur(2px);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    .qs-review-modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .qs-review-modal-content {
+      background: var(--surface);
+      width: 300px;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      transform: translateY(15px) scale(0.95);
+      transition: transform 0.2s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+      overflow: hidden;
+    }
+    .qs-review-modal-overlay.active .qs-review-modal-content {
+      transform: translateY(0) scale(1);
+    }
+    .qs-review-modal-header {
+      padding: 12px 14px;
+      background: var(--surface-alt);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .qs-review-modal-header h2 {
+      font-size: 13px;
+      color: var(--text-main);
+    }
+    .qs-review-modal-close {
+      background: none;
+      border: none;
+      font-size: 18px;
+      color: var(--text-sub);
+      cursor: pointer;
+      line-height: 1;
+    }
+    .qs-review-modal-close:hover { color: var(--text-main); }
+    .qs-review-modal-body {
+      padding: 14px;
+      font-size: 12px;
+      color: var(--text-main);
+      line-height: 1.5;
+    }
+    .qs-review-gif-wrap {
+      position: relative;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 12px;
+      cursor: pointer;
+      border: 1px solid var(--border);
+    }
+    .qs-review-gif {
+      width: 100%;
+      display: block;
+      border-radius: 7px;
+    }
+    .qs-review-gif-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .qs-review-gif-wrap:hover .qs-review-gif-overlay { opacity: 1; }
   </style>
 </head>
 <body>
@@ -898,12 +1181,18 @@
       <div class="logo">🔊</div>
       <div class="header-text">
         <h1>Chrome TTS</h1>
-        <p>Natural voice text reader</p>
+        <p data-i18n="headerSub">Natural voice text reader</p>
       </div>
+    </div>
+    <!-- EN / VI toggle -->
+    <div class="lang-toggle" id="lang-toggle">
+      <button class="lang-btn active" id="lang-btn-en" data-lang="en">EN</button>
+      <div class="lang-divider"></div>
+      <button class="lang-btn" id="lang-btn-vi" data-lang="vi">VI</button>
     </div>
   </div>
 
-  <!-- Quick Setup Banner (always visible, collapsible) -->
+  <!-- Quick Setup Banner (first install only — JS moves it above QA, hides after Done) -->
   <div class="quick-setup-wrap" id="quick-setup-wrap">
 
     <!-- Bar: always visible, click to expand/collapse -->
@@ -916,7 +1205,7 @@
     </div>
 
     <!-- Subtitle: ALWAYS visible below the bar -->
-    <div class="qs-always-subtitle">
+    <div class="qs-always-subtitle" data-i18n="qsSubtitle">
       Pin <strong>Reading Mode</strong> to your toolbar — then just <strong>1 click</strong> each time Chrome starts to load Natural voices instantly.
     </div>
 
@@ -928,22 +1217,22 @@
         <div class="qs-step">
           <div class="qs-step-num">1</div>
           <span class="qs-step-icon">…</span>
-          <div class="qs-step-text">Click the <em>3-dot menu</em> — top right of Chrome</div>
+          <div class="qs-step-text" data-i18n="qsStep1">Click the <em>3-dot menu</em> — top right of Chrome</div>
         </div>
         <div class="qs-step">
           <div class="qs-step-num">2</div>
           <span class="qs-step-icon">🖥️</span>
-          <div class="qs-step-text"><em>More Tools</em> → <em>Customize Chrome</em></div>
+          <div class="qs-step-text" data-i18n="qsStep2"><em>More Tools</em> → <em>Customize Chrome</em></div>
         </div>
         <div class="qs-step">
           <div class="qs-step-num">3</div>
           <span class="qs-step-icon">🔧</span>
-          <div class="qs-step-text">Select <em>Toolbar</em> from the left panel</div>
+          <div class="qs-step-text" data-i18n="qsStep3">Select <em>Toolbar</em> from the left panel</div>
         </div>
         <div class="qs-step">
           <div class="qs-step-num">4</div>
           <span class="qs-step-icon">📖</span>
-          <div class="qs-step-text">Toggle <em>Reading Mode</em> ON</div>
+          <div class="qs-step-text" data-i18n="qsStep4">Toggle <em>Reading Mode</em> ON</div>
         </div>
       </div>
 
@@ -955,8 +1244,63 @@
       </div>
 
       <!-- Done button -->
-      <button class="btn-qs-done" id="btn-qs-done">Done — Reading Mode is pinned</button>
+      <button class="btn-qs-done" id="btn-qs-done" data-i18n="qsDoneBtn">Done — Reading Mode is pinned</button>
 
+    </div>
+  </div>
+
+  <!-- Quick Access Daily (always pinned — below QS on first install, moves to top after Done) -->
+  <div class="quick-access-wrap" id="quick-access-wrap">
+    <div class="qa-header">
+      <div class="qa-title-row">
+        <span class="qa-label">Quick Access Daily</span>
+        <span class="qa-badge">DAILY TIP</span>
+      </div>
+      <!-- Toggle GIF button -->
+      <button class="qa-toggle-btn" id="qa-toggle-btn" aria-label="Toggle guide">
+        <span class="qa-toggle-chevron" id="qa-toggle-chevron">▾</span>
+        <span id="qa-toggle-label">Show guide</span>
+      </button>
+    </div>
+    <div class="qa-subtitle" data-i18n="qaSubtitle">
+      Every time you restart your computer &amp; open Chrome, click <strong>Reading Mode</strong> once — natural voices will load automatically.
+    </div>
+    <!-- Collapsible GIF body -->
+    <div class="qa-gif-body" id="qa-gif-body">
+      <div class="qa-gif-wrap" id="qa-gif-wrap" title="Click to view full size">
+        <img src="quickaccess.gif" alt="Quick Access Guide" class="qa-gif"
+             onerror="this.parentElement.style.display='none'" />
+        <div class="qa-gif-overlay">🔍 Click to enlarge</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Setup Hint (shown after Done, like the natural-voice hint) -->
+  <div class="qs-hint" id="qs-hint">
+    <span>📌 <a href="#" id="open-qs-review-btn" data-i18n="qsHintLink">Quick Setup guide</a> <span data-i18n="qsHintText">— re-pin Reading Mode to toolbar anytime</span></span>
+  </div>
+
+  <!-- Quick Setup Review Modal -->
+  <div class="qs-review-modal-overlay" id="qs-review-modal">
+    <div class="qs-review-modal-content">
+      <div class="qs-review-modal-header">
+        <h2>Quick Setup — Pin Reading Mode</h2>
+        <button class="qs-review-modal-close" id="close-qs-review-btn" aria-label="Close">&times;</button>
+      </div>
+      <div class="qs-review-modal-body">
+        <p data-i18n="qsReviewDesc">Pin <strong>Reading Mode</strong> to your Chrome toolbar for 1-click Natural voice access:</p>
+        <div class="qs-review-gif-wrap" id="qs-review-gif-wrap" title="Click to view full size">
+          <img src="quicksetup.gif" alt="Quick Setup Guide" class="qs-review-gif"
+               onerror="this.parentElement.style.display='none'" />
+          <div class="qs-review-gif-overlay">🔍 Click to enlarge</div>
+        </div>
+        <ol class="guide-steps">
+          <li data-i18n="qsReviewStep1">Click the <strong>3-dot menu</strong> (top right of Chrome).</li>
+          <li data-i18n="qsReviewStep2"><strong>More Tools</strong> → <strong>Customize Chrome</strong>.</li>
+          <li data-i18n="qsReviewStep3">Select <strong>Toolbar</strong> from the left panel.</li>
+          <li data-i18n="qsReviewStep4">Toggle <strong>Reading Mode</strong> ON.</li>
+        </ol>
+      </div>
     </div>
   </div>
 
@@ -970,8 +1314,8 @@
       <!-- Auto-detect toggle -->
       <div class="toggle-row">
         <div class="toggle-info">
-          <div class="toggle-name">Auto-detect Language</div>
-          <div class="toggle-desc">Detect language from selected text</div>
+          <div class="toggle-name" data-i18n="autoDetectLabel">Auto-detect Language</div>
+          <div class="toggle-desc" data-i18n="autoDetectDesc">Detect language from selected text</div>
         </div>
         <label class="toggle" id="auto-detect-label">
           <input type="checkbox" id="auto-detect" checked />
@@ -1010,7 +1354,7 @@
           </select>
           <!-- Natural Voice Hint (Hidden by default) -->
           <div id="natural-voice-hint" class="natural-voice-hint" style="display: none;">
-            <span>💡 High-quality Natural voice is available. <a href="#" id="open-guide-btn">See how to get it</a></span>
+            <span>💡 <span data-i18n="naturalVoiceHintText">High-quality Natural voice is available.</span> <a href="#" id="open-guide-btn" data-i18n="naturalVoiceHintLink">See how to get it</a></span>
           </div>
         </div>
       </div>
@@ -1024,19 +1368,19 @@
     <div class="action-buttons">
       <button class="btn-preview" id="btn-preview" aria-label="Preview voice">
         <span id="preview-icon">▶</span>
-        <span id="preview-label">Preview Voice</span>
+        <span id="preview-label" data-i18n="previewBtn">Preview Voice</span>
       </button>
       <button class="btn-read" id="btn-read-selected" aria-label="Read selected text">
         <span id="read-icon">🔊</span>
-        <span id="read-label">Read Selected</span>
+        <span id="read-label" data-i18n="readBtn">Read Selected</span>
       </button>
     </div>
 
     <!-- Card: Speed -->
     <div class="card">
-      <div class="section-title">Reading Speed</div>
+      <div class="section-title" data-i18n="speedTitle">Reading Speed</div>
       <div class="speed-header">
-        <span style="font-size:12px; color:var(--text-sub); font-weight:500;">Slow → Fast</span>
+        <span style="font-size:12px; color:var(--text-sub); font-weight:500;" data-i18n="speedLabel">Slow → Fast</span>
         <span class="speed-value" id="speed-display">1.0×</span>
       </div>
       <input type="range" id="speed-slider" min="0.5" max="2" step="0.05" value="1"
@@ -1051,7 +1395,7 @@
 
     <!-- Footer hint -->
     <div class="footer">
-      <div class="footer-hint">
+      <div class="footer-hint" data-i18n="footerHint">
         Select text on any page → right-click →<br/>
         <strong>🔊 Read Selected Text</strong>
       </div>
@@ -1067,19 +1411,19 @@
         <button class="modal-close" id="close-guide-btn" aria-label="Close">&times;</button>
       </div>
       <div class="modal-body">
-        <p>Chrome supports high-quality Natural voices, but you must enable them once:</p>
+        <p data-i18n="guideModalDesc">Chrome supports high-quality Natural voices, but you must enable them once:</p>
         <div class="guide-gif-container" id="guide-gif-container" title="Click to view full size">
           <img src="guide.gif" alt="Setup Guide" class="guide-gif" onerror="this.parentElement.style.display='none'" />
           <div class="guide-gif-overlay">🔍 Click to enlarge</div>
         </div>
         <ol class="guide-steps">
-          <li>Select some text on any article webpage.</li>
-          <li>Right-click the text and choose <strong>Open in reading mode</strong>.</li>
-          <li>In the Reading Mode side panel, click the <strong>Settings</strong> icon (gear).</li>
-          <li>Click <strong>Voice selection</strong> ➔ <strong>Languages...</strong>.</li>
-          <li><strong>Toggle ON</strong> the languages you want. Chrome will download the natural voices.</li>
+          <li data-i18n="guideStep1">Select some text on any article webpage.</li>
+          <li data-i18n="guideStep2">Right-click the text and choose <strong>Open in reading mode</strong>.</li>
+          <li data-i18n="guideStep3">In the Reading Mode side panel, click the <strong>Settings</strong> icon (gear).</li>
+          <li data-i18n="guideStep4">Click <strong>Voice selection</strong> ➔ <strong>Languages...</strong>.</li>
+          <li data-i18n="guideStep5"><strong>Toggle ON</strong> the languages you want. Chrome will download the natural voices.</li>
         </ol>
-        <button class="btn-refresh" id="btn-refresh-voices">🔄 Refresh Voices</button>
+        <button class="btn-refresh" id="btn-refresh-voices" data-i18n="refreshBtn">🔄 Refresh Voices</button>
       </div>
     </div>
   </div>

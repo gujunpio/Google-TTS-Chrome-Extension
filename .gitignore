@@ -1,0 +1,3 @@
+# GIF assets — tracked separately (too large for GitHub code repo)
+# Remove these lines once compressed GIFs are ready to commit
+*.gif

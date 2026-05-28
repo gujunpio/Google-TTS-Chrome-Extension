@@ -972,48 +972,111 @@ function setupEvents() {
 // QUICK SETUP BANNER — Expand / Collapse
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── DOM refs: Quick Setup ─────────────────────────────────────────────────────
 const qsWrap    = document.getElementById('quick-setup-wrap');
 const qsBar     = document.getElementById('qs-bar');
 const qsBadge   = document.getElementById('qs-badge');
 const qsDoneBtn = document.getElementById('btn-qs-done');
 const qsGifWrap = document.getElementById('qs-gif-wrap');
+const qsHint    = document.getElementById('qs-hint');
+const openQsReviewBtn  = document.getElementById('open-qs-review-btn');
+const closeQsReviewBtn = document.getElementById('close-qs-review-btn');
+const qsReviewModal    = document.getElementById('qs-review-modal');
+const qsReviewGifWrap  = document.getElementById('qs-review-gif-wrap');
+
+// ── DOM refs: Quick Access Daily ─────────────────────────────────────────────
+const qaWrap        = document.getElementById('quick-access-wrap');
+const qaToggleBtn   = document.getElementById('qa-toggle-btn');
+const qaToggleLabel = document.getElementById('qa-toggle-label');
+const qaGifBody     = document.getElementById('qa-gif-body');
+const qaGifWrap     = document.getElementById('qa-gif-wrap');
+
+// ── Quick Access GIF toggle ───────────────────────────────────────────────────
+let qaGifOpen = false;
+
+if (qaToggleBtn) {
+  qaToggleBtn.addEventListener('click', () => {
+    qaGifOpen = !qaGifOpen;
+    qaWrap.classList.toggle('qa-open', qaGifOpen);
+    qaToggleLabel.textContent = qaGifOpen ? 'Hide guide' : 'Show guide';
+  });
+}
+
+// Quick Access GIF — click to open full size in new tab
+if (qaGifWrap) {
+  qaGifWrap.addEventListener('click', (e) => {
+    e.stopPropagation();
+    chrome.tabs.create({ url: chrome.runtime.getURL('quickaccess.gif') });
+  });
+}
+
+// ── Quick Setup init ──────────────────────────────────────────────────────────
 
 /**
  * Initialise the Quick Setup banner.
- *  - Always visible (never hidden).
- *  - Starts expanded on first run; collapsed on subsequent opens.
- *  - If user previously clicked "Done", bar shows green ✅ badge.
+ *  - On first install: QS sits ABOVE the Quick Access Daily banner (DOM order).
+ *    The HTML already has QS before QA, so this is the natural order.
+ *  - After Done: QS is hidden, hint shown. Quick Access Daily is already below
+ *    QS in the DOM so it naturally appears right after the header.
  */
 function initQuickSetup() {
   chrome.storage.sync.get(['qsState'], ({ qsState }) => {
     if (qsState === 'done') {
-      // Completed — show collapsed with green badge
-      qsWrap.classList.remove('qs-open');
-      qsWrap.classList.add('qs-done');
-      qsBadge.textContent = 'Completed ✅';
+      // Completed — hide the full banner, show hint row instead
+      qsWrap.style.display = 'none';
+      qsHint.style.display = 'flex';
+      // Quick Access Daily is already in the DOM below QS — with QS hidden
+      // it naturally rises to the top position (right after header). Done!
     } else {
-      // First run or not done yet — start expanded
+      // First run or not done yet — start expanded, hide hint
+      // QS is already above QA in the HTML, so order is correct.
       qsWrap.classList.add('qs-open');
       qsWrap.classList.remove('qs-done');
+      qsHint.style.display = 'none';
       qsBadge.textContent = 'One-time';
     }
   });
 }
 
-// Toggle expand / collapse on bar click
+// Toggle expand / collapse Quick Setup on bar click
 qsBar.addEventListener('click', () => {
   qsWrap.classList.toggle('qs-open');
 });
 
-// "Done! Reading Mode Pinned" — collapse + mark complete
+// "Done — Reading Mode is pinned" — hide QS banner, show hint
 qsDoneBtn.addEventListener('click', () => {
   chrome.storage.sync.set({ qsState: 'done' });
-  qsWrap.classList.remove('qs-open');
-  qsWrap.classList.add('qs-done');
-  qsBadge.textContent = 'Completed ✅';
+  qsWrap.style.display = 'none';
+  qsHint.style.display = 'flex';
+  // Quick Access Daily is already in the DOM right after QS,
+  // so hiding QS automatically makes it appear at the top.
 });
 
-// GIF — click to open full size in new tab
+// Review modal: open
+openQsReviewBtn.addEventListener('click', (e) => {
+  e.preventDefault();
+  qsReviewModal.classList.add('active');
+});
+
+// Review modal: close
+closeQsReviewBtn.addEventListener('click', () => {
+  qsReviewModal.classList.remove('active');
+});
+
+// Review modal: close on overlay click
+qsReviewModal.addEventListener('click', (e) => {
+  if (e.target === qsReviewModal) qsReviewModal.classList.remove('active');
+});
+
+// Review modal: gif opens full size
+if (qsReviewGifWrap) {
+  qsReviewGifWrap.addEventListener('click', (e) => {
+    e.stopPropagation();
+    chrome.tabs.create({ url: chrome.runtime.getURL('quicksetup.gif') });
+  });
+}
+
+// Quick Setup GIF — click to open full size in new tab
 if (qsGifWrap) {
   qsGifWrap.addEventListener('click', (e) => {
     e.stopPropagation(); // don't collapse bar
@@ -1022,12 +1085,202 @@ if (qsGifWrap) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// INTERNATIONALISATION (EN / VI)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const STRINGS = {
+  en: {
+    headerSub:            'Natural voice text reader',
+    // Quick Access Daily
+    qaLabel:              'Quick Access Daily',
+    qaBadge:              'DAILY TIP',
+    qaShowGuide:          'Show guide',
+    qaHideGuide:          'Hide guide',
+    qaSubtitle:           'Every time you restart your computer & open Chrome, click <strong>Reading Mode</strong> once — natural voices will load automatically.',
+    // Quick Setup banner
+    qsLabel:              'Quick Setup',
+    qsBadge:              'One-time',
+    qsSubtitle:           'Pin <strong>Reading Mode</strong> to your toolbar — then just <strong>1 click</strong> each time Chrome starts to load Natural voices instantly.',
+    qsStep1:              'Click the <em>3-dot menu</em> — top right of Chrome',
+    qsStep2:              '<em>More Tools</em> → <em>Customize Chrome</em>',
+    qsStep3:              'Select <em>Toolbar</em> from the left panel',
+    qsStep4:              'Toggle <em>Reading Mode</em> ON',
+    qsDoneBtn:            'Done — Reading Mode is pinned',
+    // Quick Setup hint row
+    qsHintLink:           'Quick Setup guide',
+    qsHintText:           '— re-pin Reading Mode to toolbar anytime',
+    // Quick Setup review modal
+    qsReviewTitle:        'Quick Setup — Pin Reading Mode',
+    qsReviewDesc:         'Pin <strong>Reading Mode</strong> to your Chrome toolbar for 1-click Natural voice access:',
+    qsReviewStep1:        'Click the <strong>3-dot menu</strong> (top right of Chrome).',
+    qsReviewStep2:        '<strong>More Tools</strong> → <strong>Customize Chrome</strong>.',
+    qsReviewStep3:        'Select <strong>Toolbar</strong> from the left panel.',
+    qsReviewStep4:        'Toggle <strong>Reading Mode</strong> ON.',
+    // Main card
+    langVoiceTitle:       'Language & Voice',
+    autoDetectLabel:      'Auto-detect Language',
+    autoDetectDesc:       'Detect language from selected text',
+    naturalVoiceHintText: 'High-quality Natural voice is available.',
+    naturalVoiceHintLink: 'See how to get it',
+    // Buttons
+    previewBtn:           'Preview Voice',
+    readBtn:              'Read Selected',
+    // Speed card
+    speedTitle:           'Reading Speed',
+    speedLabel:           'Slow → Fast',
+    // Footer
+    footerHint:           'Select text on any page → right-click →<br/><strong>🔊 Read Selected Text</strong>',
+    // Natural voice modal
+    guideModalTitle:      'Unlock Natural Voices',
+    guideModalDesc:       'Chrome supports high-quality Natural voices, but you must enable them once:',
+    guideStep1:           'Select some text on any article webpage.',
+    guideStep2:           'Right-click the text and choose <strong>Open in reading mode</strong>.',
+    guideStep3:           'In the Reading Mode side panel, click the <strong>Settings</strong> icon (gear).',
+    guideStep4:           'Click <strong>Voice selection</strong> ➔ <strong>Languages...</strong>.',
+    guideStep5:           '<strong>Toggle ON</strong> the languages you want. Chrome will download the natural voices.',
+    refreshBtn:           '🔄 Refresh Voices',
+  },
+  vi: {
+    headerSub:            'Đọc văn bản bằng giọng tự nhiên',
+    // Quick Access Daily
+    qaLabel:              'Truy cập nhanh hằng ngày',
+    qaBadge:              'MẸO HẰNG NGÀY',
+    qaShowGuide:          'Xem hướng dẫn',
+    qaHideGuide:          'Ẩn hướng dẫn',
+    qaSubtitle:           'Mỗi khi khởi động lại máy & mở Chrome, hãy click <strong>Reading Mode</strong> 1 lần — các giọng đọc tự nhiên sẽ tự động tải.',
+    // Quick Setup banner
+    qsLabel:              'Cài đặt nhanh',
+    qsBadge:              'Một lần duy nhất',
+    qsSubtitle:           'Ghim <strong>Reading Mode</strong> vào thanh công cụ — chỉ cần <strong>1 click</strong> mỗi lần khởi động Chrome để tải giọng tự nhiên ngay.',
+    qsStep1:              'Click vào <em>menu 3 chấm</em> — góc trên cùng bên phải Chrome',
+    qsStep2:              '<em>Công cụ khác</em> → <em>Tuỳ chỉnh Chrome</em>',
+    qsStep3:              'Chọn <em>Thanh công cụ</em> ở bảng bên trái',
+    qsStep4:              'Bật <em>Reading Mode</em> lên',
+    qsDoneBtn:            'Xong — Reading Mode đã được ghim',
+    // Quick Setup hint row
+    qsHintLink:           'Hướng dẫn cài đặt nhanh',
+    qsHintText:           '— ghim lại Reading Mode vào thanh công cụ bất cứ lúc nào',
+    // Quick Setup review modal
+    qsReviewTitle:        'Cài đặt nhanh — Ghim Reading Mode',
+    qsReviewDesc:         'Ghim <strong>Reading Mode</strong> vào thanh công cụ Chrome để truy cập giọng tự nhiên chỉ với 1 click:',
+    qsReviewStep1:        'Click vào <strong>menu 3 chấm</strong> (góc trên cùng bên phải Chrome).',
+    qsReviewStep2:        '<strong>Công cụ khác</strong> → <strong>Tuỳ chỉnh Chrome</strong>.',
+    qsReviewStep3:        'Chọn <strong>Thanh công cụ</strong> ở bảng bên trái.',
+    qsReviewStep4:        'Bật <strong>Reading Mode</strong> lên.',
+    // Main card
+    langVoiceTitle:       'Ngôn ngữ & Giọng đọc',
+    autoDetectLabel:      'Tự động nhận diện ngôn ngữ',
+    autoDetectDesc:       'Nhận diện ngôn ngữ từ văn bản được chọn',
+    naturalVoiceHintText: 'Giọng đọc tự nhiên chất lượng cao có sẵn.',
+    naturalVoiceHintLink: 'Xem cách kích hoạt',
+    // Buttons
+    previewBtn:           'Nghe thử giọng',
+    readBtn:              'Đọc văn bản',
+    // Speed card
+    speedTitle:           'Tốc độ đọc',
+    speedLabel:           'Chậm → Nhanh',
+    // Footer
+    footerHint:           'Bôi đen văn bản trên bất kỳ trang → chuột phải →<br/><strong>🔊 Đọc văn bản đã chọn</strong>',
+    // Natural voice modal
+    guideModalTitle:      'Mở khoá giọng tự nhiên',
+    guideModalDesc:       'Chrome hỗ trợ giọng tự nhiên chất lượng cao, nhưng bạn cần kích hoạt một lần:',
+    guideStep1:           'Bôi đen một đoạn văn bản trên bất kỳ trang web nào.',
+    guideStep2:           'Chuột phải và chọn <strong>Mở trong chế độ đọc</strong>.',
+    guideStep3:           'Trong bảng Reading Mode, click biểu tượng <strong>Cài đặt</strong> (bánh răng).',
+    guideStep4:           'Click <strong>Chọn giọng đọc</strong> ➔ <strong>Ngôn ngữ...</strong>.',
+    guideStep5:           '<strong>Bật ON</strong> các ngôn ngữ bạn muốn. Chrome sẽ tải về giọng tự nhiên.',
+    refreshBtn:           '🔄 Làm mới giọng đọc',
+  }
+};
+
+// Current UI language — defaults to 'en', loaded from storage
+let currentLang = 'en';
+
+/**
+ * Apply all STRINGS[lang] translations to every [data-i18n] element.
+ * Nodes with innerHTML keys (those containing HTML tags) use innerHTML;
+ * the rest use textContent so we stay XSS-safe.
+ */
+function applyLang(lang) {
+  const t = STRINGS[lang];
+  if (!t) return;
+
+  // Keys whose values contain HTML markup — use innerHTML
+  const htmlKeys = new Set([
+    'qaSubtitle', 'qsSubtitle',
+    'qsStep1','qsStep2','qsStep3','qsStep4',
+    'qsReviewDesc','qsReviewStep1','qsReviewStep2','qsReviewStep3','qsReviewStep4',
+    'naturalVoiceHintText',
+    'footerHint',
+    'guideModalDesc','guideStep2','guideStep3','guideStep4','guideStep5',
+  ]);
+
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.dataset.i18n;
+    if (!(key in t)) return;
+    if (htmlKeys.has(key)) {
+      el.innerHTML = t[key];
+    } else {
+      el.textContent = t[key];
+    }
+  });
+
+  // Special: qa-toggle-label depends on open state
+  if (qaToggleLabel) {
+    qaToggleLabel.textContent = qaGifOpen ? t.qaHideGuide : t.qaShowGuide;
+  }
+
+  // Special: QS section title & badge (not data-i18n'd to avoid overwriting badge id)
+  const qsBarLabel = document.querySelector('.qs-bar-label');
+  if (qsBarLabel) qsBarLabel.textContent = t.qsLabel;
+
+  // QA label + badge
+  const qaLabel = document.querySelector('.qa-label');
+  const qaBadge = document.querySelector('.qa-badge');
+  if (qaLabel) qaLabel.textContent = t.qaLabel;
+  if (qaBadge) qaBadge.textContent = t.qaBadge;
+
+  // Section title: Language & Voice
+  const langVoiceTitle = document.querySelector('.section-title');
+  if (langVoiceTitle) langVoiceTitle.textContent = t.langVoiceTitle;
+
+  // Natural voice modal title & QS review modal title
+  const guideModalTitle = document.querySelector('#guide-modal .modal-header h2');
+  if (guideModalTitle) guideModalTitle.textContent = t.guideModalTitle;
+  const qsReviewModalTitle = document.querySelector('#qs-review-modal .qs-review-modal-header h2');
+  if (qsReviewModalTitle) qsReviewModalTitle.textContent = t.qsReviewTitle;
+
+  // Update lang toggle button active state
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.lang === lang);
+  });
+}
+
+/**
+ * Switch language, save to storage, apply immediately.
+ */
+function setLang(lang) {
+  currentLang = lang;
+  chrome.storage.sync.set({ uiLang: lang });
+  applyLang(lang);
+}
+
+// ── Lang toggle button events ─────────────────────────────────────────────────
+document.querySelectorAll('.lang-btn').forEach(btn => {
+  btn.addEventListener('click', () => setLang(btn.dataset.lang));
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // BOOT
 // ─────────────────────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
   init();
   initQuickSetup();
+
+  // Load saved language preference (default: 'en')
+  chrome.storage.sync.get(['uiLang'], ({ uiLang }) => {
+    currentLang = uiLang === 'vi' ? 'vi' : 'en';
+    applyLang(currentLang);
+  });
 });
-
-
